@@ -12,10 +12,10 @@ export default function App() {
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/project/:id" element={<Project />} />
-          <Route path="/project/:id/upload" element={<Upload />} />
-          <Route path="/project/:id/proofread" element={<Proofread />} />
-          <Route path="/project/:id/publish" element={<Publish />} />
+          <Route path="/project/:projectId" element={<Project />} />
+          <Route path="/project/:projectId/upload" element={<Upload />} />
+          <Route path="/project/:projectId/proofread" element={<Proofread />} />
+          <Route path="/project/:projectId/publish" element={<Publish />} />
         </Route>
       </Routes>
     </Router>

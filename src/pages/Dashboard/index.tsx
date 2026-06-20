@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { X, Calendar, Globe } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { CircularProgress } from "@/components/ProgressBar";
 import { StatusStamp } from "@/components/StatusBadge";
@@ -10,7 +11,7 @@ import {
   formatRelativeTime,
   calculateProjectProgress,
 } from "@/utils";
-import { VISIBILITY_LABELS } from "@/types";
+import { VISIBILITY_LABELS, ProjectVisibility } from "@/types";
 
 const container = {
   hidden: { opacity: 0 },
@@ -48,6 +49,16 @@ export default function Dashboard() {
   const rawActivities = useAppStore((s) => s.activities);
   const rawIssues = useAppStore((s) => s.proofreadIssues);
   const currentUserId = useAppStore((s) => s.currentUserId);
+  const addProject = useAppStore((s) => s.addProject);
+
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    deadline: "",
+    visibility: "public" as ProjectVisibility,
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const userName = useMemo(() => {
     const m = rawMembers.find((m) => m.id === currentUserId);
@@ -140,7 +151,7 @@ export default function Dashboard() {
             合志发行工作台
           </h1>
         </div>
-        <button className="btn-cinnabar flex items-center gap-2">
+        <button onClick={() => setShowModal(true)} className="btn-cinnabar flex items-center gap-2">
           <span className="text-lg leading-none">+</span>
           新建合志
         </button>
@@ -369,6 +380,199 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+
+      <AnimatePresence>
+        {showModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowModal(false)}
+              className="fixed inset-0 bg-ink-900/60 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, type: "spring", bounce: 0 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg"
+            >
+              <div className="ink-card p-6 mx-4">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-serif font-bold text-ink-900">新建合志</h2>
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="btn-ghost p-2 hover:bg-ink-50"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const newErrors: Record<string, string> = {};
+                    if (!formData.name.trim()) newErrors.name = "请输入刊物名称";
+                    if (!formData.deadline) newErrors.deadline = "请选择截稿日期";
+                    if (!formData.description.trim()) newErrors.description = "请输入简介";
+
+                    if (Object.keys(newErrors).length > 0) {
+                      setErrors(newErrors);
+                      return;
+                    }
+
+                    const coverPrompt = encodeURIComponent(
+                      `${formData.name} book cover elegant minimalist design traditional style`
+                    );
+                    const coverUrl = `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${coverPrompt}&image_size=portrait_4_3`;
+
+                    addProject({
+                      name: formData.name.trim(),
+                      description: formData.description.trim(),
+                      coverUrl,
+                      deadline: formData.deadline,
+                      visibility: formData.visibility,
+                    });
+
+                    setFormData({
+                      name: "",
+                      description: "",
+                      deadline: "",
+                      visibility: "public",
+                    });
+                    setErrors({});
+                    setShowModal(false);
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                      刊物名称
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => {
+                        setFormData({ ...formData, name: e.target.value });
+                        if (errors.name) setErrors({ ...errors, name: "" });
+                      }}
+                      placeholder="例如：星霜纪年·冬之卷"
+                      className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
+                        errors.name
+                          ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
+                          : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
+                      }`}
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-cinnabar-500">{errors.name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                      简介
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => {
+                        setFormData({ ...formData, description: e.target.value });
+                        if (errors.description) setErrors({ ...errors, description: "" });
+                      }}
+                      placeholder="简要描述这本合志的主题和内容..."
+                      rows={3}
+                      className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 resize-none ${
+                        errors.description
+                          ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
+                          : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
+                      }`}
+                    />
+                    {errors.description && (
+                      <p className="mt-1 text-xs text-cinnabar-500">{errors.description}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                      <Calendar size={14} className="inline mr-1.5 -mt-0.5" />
+                      截稿日期
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.deadline}
+                      onChange={(e) => {
+                        setFormData({ ...formData, deadline: e.target.value });
+                        if (errors.deadline) setErrors({ ...errors, deadline: "" });
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
+                        errors.deadline
+                          ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
+                          : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
+                      }`}
+                    />
+                    {errors.deadline && (
+                      <p className="mt-1 text-xs text-cinnabar-500">{errors.deadline}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                      <Globe size={14} className="inline mr-1.5 -mt-0.5" />
+                      公开范围
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          { value: "public", label: "公开", desc: "所有人可见" },
+                          { value: "link", label: "仅链接", desc: "链接访问" },
+                          { value: "private", label: "私密", desc: "仅成员" },
+                        ] as { value: ProjectVisibility; label: string; desc: string }[]
+                      ).map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, visibility: opt.value })
+                          }
+                          className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                            formData.visibility === opt.value
+                              ? "border-indigo bg-indigo/5"
+                              : "border-ink-100 bg-white hover:border-ink-200"
+                          }`}
+                        >
+                          <p
+                            className={`text-sm font-medium ${
+                              formData.visibility === opt.value
+                                ? "text-indigo"
+                                : "text-ink-700"
+                            }`}
+                          >
+                            {opt.label}
+                          </p>
+                          <p className="text-[10px] text-ink-400 mt-0.5">{opt.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-3 border-t border-ink-50">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="btn-outline flex-1"
+                    >
+                      取消
+                    </button>
+                    <button type="submit" className="btn-cinnabar flex-1">
+                      创建合志
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

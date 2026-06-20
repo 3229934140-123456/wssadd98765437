@@ -23,6 +23,7 @@ interface AppState {
   getMemberById: (id: string) => Member | undefined;
   getCurrentUserProjects: () => Project[];
   getCurrentUserTodos: () => { type: string; detail: string; projectId: string; projectName: string; deadline: string }[];
+  setCurrentUserId: (id: string) => void;
 
   addProject: (project: Omit<Project, "id" | "createdAt" | "status">) => string;
   updateProject: (id: string, updates: Partial<Project>) => void;
@@ -108,6 +109,8 @@ export const useAppStore = create<AppState>()(
         }
         return todos;
       },
+
+      setCurrentUserId: (id) => set({ currentUserId: id }),
 
       addProject: (data) => {
         const id = genId("p");
