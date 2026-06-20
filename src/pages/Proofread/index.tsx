@@ -1,11 +1,11 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/stores/appStore";
 import { ProjectSubNav } from "@/components/Layout/Sidebar";
 import { IssueStatusBadge } from "@/components/StatusBadge";
-import type { IssueType } from "@/types";
-import { ISSUE_TYPE_LABELS } from "@/types";
+import type { IssueType, IssueStatus } from "@/types";
+import { ISSUE_TYPE_LABELS, ISSUE_STATUS_LABELS } from "@/types";
 import { formatDate } from "@/utils";
 import {
   Type,
@@ -15,9 +15,16 @@ import {
   ChevronRight,
   X,
   ListChecks,
-  ArrowLeft,
-  ArrowRight,
+  Filter,
+  SortDesc,
+  ChevronDown,
 } from "lucide-react";
+
+const STATUS_ORDER: Record<IssueStatus, number> = {
+  open: 0,
+  resolved: 1,
+  confirmed: 2,
+};
 
 const TOOL_CONFIG: {
   type: IssueType;
@@ -88,11 +95,63 @@ export default function Proofread() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newIssuePosition, setNewIssuePosition] = useState({ x: 0, y: 0 });
   const [newIssueDesc, setNewIssueDesc] = useState("");
+  const [filterArticleId, setFilterArticleId] = useState<string | "all">("all");
+  const [filterType, setFilterType] = useState<IssueType | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<IssueStatus | "all">("all");
+  const [showArticleDropdown, setShowArticleDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowArticleDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const activeArticle = articles.find((a) => a.id === activeArticleId);
   const totalPages = activeArticle?.pageCount ?? 1;
   const articleIssues = allIssues.filter((i) => i.articleId === activeArticleId);
   const pageIssues = articleIssues.filter((i) => i.page === currentPage);
+
+  const filteredIssues = useMemo(() => {
+    let result = [...allIssues];
+
+    if (filterArticleId !== "all") {
+      result = result.filter((i) => i.articleId === filterArticleId);
+    }
+    if (filterType !== "all") {
+      result = result.filter((i) => i.type === filterType);
+    }
+    if (filterStatus !== "all") {
+      result = result.filter((i) => i.status === filterStatus);
+    }
+
+    result.sort((a, b) => {
+      const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    return result;
+  }, [allIssues, filterArticleId, filterType, filterStatus]);
+
+  const groupedIssues = useMemo(() => {
+    const groups: Record<IssueStatus, typeof filteredIssues> = {
+      open: [],
+      resolved: [],
+      confirmed: [],
+    };
+    filteredIssues.forEach((issue) => {
+      groups[issue.status].push(issue);
+    });
+    return groups;
+  }, [filteredIssues]);
 
   const handleArticleChange = (articleId: string) => {
     setActiveArticleId(articleId);
@@ -361,97 +420,306 @@ export default function Proofread() {
                     问题列表
                   </h3>
                   <span className="text-xs text-ink-400">
-                    共 {allIssues.length} 项
+                    共 {filteredIssues.length} / {allIssues.length} 项
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto scrollbar-washi p-3 space-y-4">
-                  {articles.map((article) => {
-                    const issues = allIssues.filter((i) => i.articleId === article.id);
-                    if (issues.length === 0) return null;
-                    return (
-                      <div key={article.id}>
-                        <div className="flex items-center gap-2 mb-2 px-1">
-                          <span className="text-xs font-serif font-semibold text-ink-700">
-                            {article.title}
-                          </span>
-                          <span className="text-[10px] text-ink-400">
-                            {issues.length} 项
-                          </span>
-                        </div>
-
-                        <div className="space-y-2">
-                          {issues.map((issue) => {
-                            const cfg = TOOL_CONFIG.find(
-                              (t) => t.type === issue.type
-                            );
-                            const reporter = rawMembers.find((m) => m.id === issue.reporterId);
-                            return (
-                              <motion.div
-                                key={issue.id}
-                                layout
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-washi-50/80 rounded-xl p-3 border border-ink-100/30"
+                <div className="px-4 py-3 border-b border-ink-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Filter size={14} className="text-ink-400 flex-shrink-0" />
+                    <div className="relative flex-1" ref={dropdownRef}>
+                      <button
+                        onClick={() => setShowArticleDropdown(!showArticleDropdown)}
+                        className="w-full flex items-center justify-between px-3 py-1.5 bg-washi-50/60 border border-ink-100/60 rounded-lg text-xs text-ink-700 hover:bg-washi-50 transition-colors"
+                      >
+                        <span className="truncate">
+                          {filterArticleId === "all"
+                            ? "全部文章"
+                            : articles.find((a) => a.id === filterArticleId)?.title ??
+                              "全部文章"}
+                        </span>
+                        <ChevronDown size={14} className="text-ink-400" />
+                      </button>
+                      <AnimatePresence>
+                        {showArticleDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            className="absolute top-full left-0 right-0 mt-1 bg-white border border-ink-100 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto"
+                          >
+                            <button
+                              onClick={() => {
+                                setFilterArticleId("all");
+                                setShowArticleDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs hover:bg-ink-50 transition-colors ${
+                                filterArticleId === "all"
+                                  ? "text-cinnabar-600 bg-cinnabar-50/50"
+                                  : "text-ink-700"
+                              }`}
+                            >
+                              全部文章
+                            </button>
+                            {articles.map((article) => (
+                              <button
+                                key={article.id}
+                                onClick={() => {
+                                  setFilterArticleId(article.id);
+                                  setShowArticleDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs hover:bg-ink-50 transition-colors ${
+                                  filterArticleId === article.id
+                                    ? "text-cinnabar-600 bg-cinnabar-50/50"
+                                    : "text-ink-700"
+                                }`}
                               >
-                                <div className="flex items-start gap-2">
-                                  <span
-                                    className={`stamp-mark ${cfg?.badgeClass} border text-[10px] flex-shrink-0`}
-                                  >
-                                    {ISSUE_TYPE_LABELS[issue.type]}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-ink-800 leading-relaxed">
-                                      {issue.description}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-ink-400">
-                                      <span>P{issue.page}</span>
-                                      <span>·</span>
-                                      <span>
-                                        {reporter?.name ?? "未知"}
-                                      </span>
-                                      <span>·</span>
-                                      <span>
-                                        {formatDate(issue.createdAt)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <IssueStatusBadge status={issue.status} />
-                                </div>
+                                {article.title}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
 
-                                <div className="flex items-center justify-end gap-2 mt-2">
-                                  {issue.status === "open" &&
-                                    isAssigneeOfArticle(article.id) && (
-                                      <motion.button
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() =>
-                                          resolveIssue(issue.id)
-                                        }
-                                        className="btn-indigo !px-3 !py-1 !text-[11px] !rounded-lg"
-                                      >
-                                        已处理
-                                      </motion.button>
-                                    )}
-                                  {issue.status === "resolved" &&
-                                    isOrganizer && (
-                                      <motion.button
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() =>
-                                          confirmIssue(issue.id)
-                                        }
-                                        className="btn-cinnabar !px-3 !py-1 !text-[11px] !rounded-lg"
-                                      >
-                                        已确认
-                                      </motion.button>
-                                    )}
-                                </div>
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <div>
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <span className="text-[10px] text-ink-400 font-medium">
+                        问题类型
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => setFilterType("all")}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                          filterType === "all"
+                            ? "bg-ink-900 text-washi-100"
+                            : "border border-ink-200 text-ink-500 hover:border-ink-300 hover:text-ink-700"
+                        }`}
+                      >
+                        全部
+                      </button>
+                      {(["typo", "page_break", "bleed"] as IssueType[]).map(
+                        (type) => {
+                          const isActive = filterType === type;
+                          let activeClass = "";
+                          if (type === "typo") {
+                            activeClass =
+                              "bg-cinnabar-500 text-white border-cinnabar-500";
+                          } else if (type === "page_break") {
+                            activeClass = "bg-indigo text-white border-indigo";
+                          } else {
+                            activeClass =
+                              "bg-gold text-ink-900 border-gold";
+                          }
+                          return (
+                            <button
+                              key={type}
+                              onClick={() => setFilterType(type)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all border ${
+                                isActive
+                                  ? activeClass
+                                  : "border-ink-200 text-ink-500 hover:border-ink-300 hover:text-ink-700"
+                              }`}
+                            >
+                              {ISSUE_TYPE_LABELS[type]}
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <SortDesc size={10} className="text-ink-400" />
+                      <span className="text-[10px] text-ink-400 font-medium">
+                        状态筛选
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => setFilterStatus("all")}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                          filterStatus === "all"
+                            ? "bg-ink-900 text-washi-100"
+                            : "border border-ink-200 text-ink-500 hover:border-ink-300 hover:text-ink-700"
+                        }`}
+                      >
+                        全部
+                      </button>
+                      {(["open", "resolved", "confirmed"] as IssueStatus[]).map(
+                        (status) => {
+                          const isActive = filterStatus === status;
+                          return (
+                            <button
+                              key={status}
+                              onClick={() => setFilterStatus(status)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all border ${
+                                isActive
+                                  ? "bg-ink-900 text-washi-100 border-ink-900"
+                                  : "border-ink-200 text-ink-500 hover:border-ink-300 hover:text-ink-700"
+                              }`}
+                            >
+                              {ISSUE_STATUS_LABELS[status]}
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto scrollbar-washi p-3 space-y-5">
+                  <AnimatePresence mode="popLayout">
+                    {(["open", "resolved", "confirmed"] as IssueStatus[]).map(
+                      (status) => {
+                        const issues = groupedIssues[status];
+                        if (issues.length === 0) return null;
+                        const statusLabel = ISSUE_STATUS_LABELS[status];
+                        let headerClass = "text-ink-700";
+                        let headerDotClass = "bg-ink-400";
+                        if (status === "open") {
+                          headerClass = "text-cinnabar-600";
+                          headerDotClass = "bg-cinnabar-500";
+                        } else if (status === "resolved") {
+                          headerClass = "text-indigo";
+                          headerDotClass = "bg-indigo";
+                        } else {
+                          headerClass = "text-ink-500";
+                          headerDotClass = "bg-ink-400";
+                        }
+                        return (
+                          <motion.div
+                            key={status}
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${headerDotClass}`}
+                              />
+                              <span
+                                className={`text-xs font-serif font-semibold ${headerClass}`}
+                              >
+                                {statusLabel}
+                              </span>
+                              <span className="text-[10px] text-ink-400">
+                                {issues.length} 项
+                              </span>
+                            </div>
+
+                            <div className="space-y-2">
+                              <AnimatePresence mode="popLayout">
+                                {issues.map((issue) => {
+                                  const cfg = TOOL_CONFIG.find(
+                                    (t) => t.type === issue.type
+                                  );
+                                  const reporter = rawMembers.find(
+                                    (m) => m.id === issue.reporterId
+                                  );
+                                  const article = articles.find(
+                                    (a) => a.id === issue.articleId
+                                  );
+                                  return (
+                                    <motion.div
+                                      key={issue.id}
+                                      layout
+                                      initial={{ opacity: 0, y: 8 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{
+                                        opacity: 0,
+                                        scale: 0.95,
+                                        height: 0,
+                                        marginBottom: 0,
+                                      }}
+                                      transition={{ duration: 0.2 }}
+                                      className="bg-washi-50/80 rounded-xl p-3 border border-ink-100/30"
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <span
+                                          className={`stamp-mark ${cfg?.badgeClass} border text-[10px] flex-shrink-0`}
+                                        >
+                                          {ISSUE_TYPE_LABELS[issue.type]}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-[10px] text-ink-400 mb-1">
+                                            {article?.title}
+                                          </div>
+                                          <p className="text-xs text-ink-800 leading-relaxed">
+                                            {issue.description}
+                                          </p>
+                                          <div className="flex items-center gap-2 mt-1.5 text-[10px] text-ink-400">
+                                            <span>P{issue.page}</span>
+                                            <span>·</span>
+                                            <span>
+                                              {reporter?.name ?? "未知"}
+                                            </span>
+                                            <span>·</span>
+                                            <span>
+                                              {formatDate(issue.createdAt)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <IssueStatusBadge
+                                          status={issue.status}
+                                        />
+                                      </div>
+
+                                      <div className="flex items-center justify-end gap-2 mt-2">
+                                        {issue.status === "open" &&
+                                          isAssigneeOfArticle(
+                                            issue.articleId
+                                          ) && (
+                                            <motion.button
+                                              whileTap={{ scale: 0.95 }}
+                                              onClick={() =>
+                                                resolveIssue(issue.id)
+                                              }
+                                              className="btn-indigo !px-3 !py-1 !text-[11px] !rounded-lg"
+                                            >
+                                              已处理
+                                            </motion.button>
+                                          )}
+                                        {issue.status === "resolved" &&
+                                          isOrganizer && (
+                                            <motion.button
+                                              whileTap={{ scale: 0.95 }}
+                                              onClick={() =>
+                                                confirmIssue(issue.id)
+                                              }
+                                              className="btn-cinnabar !px-3 !py-1 !text-[11px] !rounded-lg"
+                                            >
+                                              已确认
+                                            </motion.button>
+                                          )}
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
+                              </AnimatePresence>
+                            </div>
+                          </motion.div>
+                        );
+                      }
+                    )}
+                  </AnimatePresence>
+
+                  {filteredIssues.length === 0 && allIssues.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex flex-col items-center justify-center py-12 text-ink-300"
+                    >
+                      <Filter size={28} className="mb-2 opacity-40" />
+                      <p className="text-sm">没有符合筛选条件的问题</p>
+                      <p className="text-xs mt-1">尝试调整筛选条件</p>
+                    </motion.div>
+                  )}
 
                   {allIssues.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-ink-300">

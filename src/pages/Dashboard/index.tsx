@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Calendar, Globe } from "lucide-react";
+import { X, Calendar, Globe, UserPlus, FilePlus } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { CircularProgress } from "@/components/ProgressBar";
 import { StatusStamp } from "@/components/StatusBadge";
@@ -10,8 +10,10 @@ import {
   formatDate,
   formatRelativeTime,
   calculateProjectProgress,
+  generateId,
+  getInitials,
 } from "@/utils";
-import { VISIBILITY_LABELS, ProjectVisibility } from "@/types";
+import { VISIBILITY_LABELS, ProjectVisibility, MemberRole, ArticleType, ROLE_LABELS, ARTICLE_TYPE_LABELS } from "@/types";
 
 const container = {
   hidden: { opacity: 0 },
@@ -42,6 +44,40 @@ const TODO_LABELS: Record<string, string> = {
   proofread: "待校对",
 };
 
+const ROLE_COLORS: Record<MemberRole, string> = {
+  organizer: "bg-cinnabar-500",
+  artist: "bg-indigo",
+  writer: "bg-emerald-500",
+  proofreader: "bg-gold",
+};
+
+const ROLE_BG_COLORS: Record<MemberRole, string> = {
+  organizer: "bg-cinnabar-50 text-cinnabar-600",
+  artist: "bg-indigo/10 text-indigo",
+  writer: "bg-emerald-50 text-emerald-600",
+  proofreader: "bg-gold/15 text-gold-dark",
+};
+
+const ARTICLE_BG_COLORS: Record<ArticleType, string> = {
+  cover: "bg-cinnabar-50 text-cinnabar-600",
+  illustration: "bg-indigo/10 text-indigo",
+  text: "bg-emerald-50 text-emerald-600",
+};
+
+interface FormMember {
+  tempId: string;
+  name: string;
+  role: MemberRole;
+  isCurrentUser: boolean;
+}
+
+interface FormArticle {
+  tempId: string;
+  title: string;
+  type: ArticleType;
+  assigneeTempId: string;
+}
+
 export default function Dashboard() {
   const rawProjects = useAppStore((s) => s.projects);
   const rawMembers = useAppStore((s) => s.members);
@@ -59,11 +95,71 @@ export default function Dashboard() {
     visibility: "public" as ProjectVisibility,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [members, setMembers] = useState<FormMember[]>([]);
+  const [showMemberRow, setShowMemberRow] = useState(false);
+  const [newMember, setNewMember] = useState({ name: "", role: "artist" as MemberRole });
+  const [articles, setArticles] = useState<FormArticle[]>([]);
+  const [showArticleRow, setShowArticleRow] = useState(false);
+  const [newArticle, setNewArticle] = useState({ title: "", type: "text" as ArticleType, assigneeTempId: "" });
 
   const userName = useMemo(() => {
     const m = rawMembers.find((m) => m.id === currentUserId);
     return m?.name ?? "创作者";
   }, [rawMembers, currentUserId]);
+
+  useEffect(() => {
+    if (showModal && members.length === 0) {
+      setMembers([
+        {
+          tempId: "current-user",
+          name: userName,
+          role: "organizer",
+          isCurrentUser: true,
+        },
+      ]);
+    }
+  }, [showModal, members.length, userName]);
+
+  const handleAddMember = () => {
+    if (!newMember.name.trim()) return;
+    const member: FormMember = {
+      tempId: generateId("mem"),
+      name: newMember.name.trim(),
+      role: newMember.role,
+      isCurrentUser: false,
+    };
+    setMembers([...members, member]);
+    setNewMember({ name: "", role: "artist" });
+    setShowMemberRow(false);
+  };
+
+  const handleRemoveMember = (tempId: string) => {
+    const member = members.find((m) => m.tempId === tempId);
+    if (!member || member.isCurrentUser) return;
+    setMembers(members.filter((m) => m.tempId !== tempId));
+    setArticles(
+      articles.map((a) =>
+        a.assigneeTempId === tempId ? { ...a, assigneeTempId: "" } : a
+      )
+    );
+  };
+
+  const handleAddArticle = () => {
+    if (!newArticle.title.trim()) return;
+    const article: FormArticle = {
+      tempId: generateId("art"),
+      title: newArticle.title.trim(),
+      type: newArticle.type,
+      assigneeTempId: newArticle.assigneeTempId,
+    };
+    setArticles([...articles, article]);
+    setNewArticle({ title: "", type: "text", assigneeTempId: "" });
+    setShowArticleRow(false);
+  };
+
+  const handleRemoveArticle = (tempId: string) => {
+    setArticles(articles.filter((a) => a.tempId !== tempId));
+  };
 
   const projects = useMemo(() => {
     const memberOf = rawMembers.filter((m) => m.id === currentUserId);
@@ -427,13 +523,39 @@ export default function Dashboard() {
                     );
                     const coverUrl = `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${coverPrompt}&image_size=portrait_4_3`;
 
-                    addProject({
-                      name: formData.name.trim(),
-                      description: formData.description.trim(),
-                      coverUrl,
-                      deadline: formData.deadline,
-                      visibility: formData.visibility,
+                    const projectMembers = members
+                      .filter((m) => !m.isCurrentUser)
+                      .map((m) => ({
+                        name: m.name,
+                        role: m.role,
+                      }));
+
+                    const memberIdMap = new Map<string, string>();
+                    members.forEach((m) => {
+                      if (m.isCurrentUser) {
+                        memberIdMap.set(m.tempId, currentUserId);
+                      } else {
+                        memberIdMap.set(m.tempId, m.name);
+                      }
                     });
+
+                    const projectArticles = articles.map((a) => ({
+                      title: a.title,
+                      type: a.type,
+                      assigneeId: memberIdMap.get(a.assigneeTempId) ?? "",
+                    }));
+
+                    addProject(
+                      {
+                        name: formData.name.trim(),
+                        description: formData.description.trim(),
+                        coverUrl,
+                        deadline: formData.deadline,
+                        visibility: formData.visibility,
+                      },
+                      projectMembers.length > 0 ? projectMembers : undefined,
+                      projectArticles.length > 0 ? projectArticles : undefined
+                    );
 
                     setFormData({
                       name: "",
@@ -441,6 +563,12 @@ export default function Dashboard() {
                       deadline: "",
                       visibility: "public",
                     });
+                    setMembers([]);
+                    setArticles([]);
+                    setShowMemberRow(false);
+                    setShowArticleRow(false);
+                    setNewMember({ name: "", role: "artist" });
+                    setNewArticle({ title: "", type: "text", assigneeTempId: "" });
                     setErrors({});
                     setShowModal(false);
                   }}
@@ -552,6 +680,230 @@ export default function Dashboard() {
                           <p className="text-[10px] text-ink-400 mt-0.5">{opt.desc}</p>
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                      <UserPlus size={14} className="inline mr-1.5 -mt-0.5" />
+                      参与人员
+                    </label>
+                    <div className="space-y-2">
+                      {members.map((member) => (
+                        <div
+                          key={member.tempId}
+                          className="flex items-center gap-3 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100"
+                        >
+                          <div
+                            className={`w-9 h-9 rounded-full ${ROLE_COLORS[member.role]} text-white flex items-center justify-center text-sm font-medium shrink-0`}
+                          >
+                            {getInitials(member.name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-ink-700 truncate">
+                              {member.name}
+                              {member.isCurrentUser && (
+                                <span className="text-ink-400 text-xs ml-1.5">(你)</span>
+                              )}
+                            </p>
+                            <span
+                              className={`inline-block text-[10px] px-1.5 py-0.5 rounded mt-0.5 ${ROLE_BG_COLORS[member.role]}`}
+                            >
+                              {ROLE_LABELS[member.role]}
+                            </span>
+                          </div>
+                          {!member.isCurrentUser && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMember(member.tempId)}
+                              className="btn-ghost p-1.5 hover:bg-ink-100 rounded-lg shrink-0"
+                            >
+                              <X size={14} className="text-ink-400" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      {showMemberRow && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100">
+                          <input
+                            type="text"
+                            value={newMember.name}
+                            onChange={(e) =>
+                              setNewMember({ ...newMember, name: e.target.value })
+                            }
+                            placeholder="成员名称"
+                            className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                            autoFocus
+                          />
+                          <select
+                            value={newMember.role}
+                            onChange={(e) =>
+                              setNewMember({
+                                ...newMember,
+                                role: e.target.value as MemberRole,
+                              })
+                            }
+                            className="px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                          >
+                            <option value="organizer">{ROLE_LABELS.organizer}</option>
+                            <option value="artist">{ROLE_LABELS.artist}</option>
+                            <option value="writer">{ROLE_LABELS.writer}</option>
+                            <option value="proofreader">{ROLE_LABELS.proofreader}</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleAddMember}
+                            className="btn-cinnabar px-3 py-2 text-sm"
+                          >
+                            添加
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowMemberRow(false);
+                              setNewMember({ name: "", role: "artist" });
+                            }}
+                            className="btn-ghost p-2 hover:bg-ink-100 rounded-lg"
+                          >
+                            <X size={16} className="text-ink-400" />
+                          </button>
+                        </div>
+                      )}
+
+                      {!showMemberRow && (
+                        <button
+                          type="button"
+                          onClick={() => setShowMemberRow(true)}
+                          className="btn-outline w-full py-2 text-sm flex items-center justify-center gap-1.5"
+                        >
+                          <UserPlus size={14} />
+                          添加成员
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                      <FilePlus size={14} className="inline mr-1.5 -mt-0.5" />
+                      篇目列表
+                    </label>
+                    <div className="space-y-2">
+                      {articles.map((article) => {
+                        const assignee = members.find(
+                          (m) => m.tempId === article.assigneeTempId
+                        );
+                        return (
+                          <div
+                            key={article.tempId}
+                            className="flex items-center gap-3 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-ink-700 truncate">
+                                {article.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span
+                                  className={`stamp-mark text-[10px] ${ARTICLE_BG_COLORS[article.type]}`}
+                                >
+                                  {ARTICLE_TYPE_LABELS[article.type]}
+                                </span>
+                                {assignee && (
+                                  <span className="text-xs text-ink-400">
+                                    {assignee.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveArticle(article.tempId)}
+                              className="btn-ghost p-1.5 hover:bg-ink-100 rounded-lg shrink-0"
+                            >
+                              <X size={14} className="text-ink-400" />
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {showArticleRow && (
+                        <div className="space-y-2 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100">
+                          <input
+                            type="text"
+                            value={newArticle.title}
+                            onChange={(e) =>
+                              setNewArticle({ ...newArticle, title: e.target.value })
+                            }
+                            placeholder="篇目标题"
+                            className="w-full px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                            autoFocus
+                          />
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={newArticle.type}
+                              onChange={(e) =>
+                                setNewArticle({
+                                  ...newArticle,
+                                  type: e.target.value as ArticleType,
+                                })
+                              }
+                              className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                            >
+                              <option value="cover">{ARTICLE_TYPE_LABELS.cover}</option>
+                              <option value="illustration">{ARTICLE_TYPE_LABELS.illustration}</option>
+                              <option value="text">{ARTICLE_TYPE_LABELS.text}</option>
+                            </select>
+                            <select
+                              value={newArticle.assigneeTempId}
+                              onChange={(e) =>
+                                setNewArticle({
+                                  ...newArticle,
+                                  assigneeTempId: e.target.value,
+                                })
+                              }
+                              className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                            >
+                              <option value="">选择负责人</option>
+                              {members.map((m) => (
+                                <option key={m.tempId} value={m.tempId}>
+                                  {m.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowArticleRow(false);
+                                setNewArticle({ title: "", type: "text", assigneeTempId: "" });
+                              }}
+                              className="btn-ghost px-3 py-1.5 text-sm hover:bg-ink-100 rounded-lg"
+                            >
+                              取消
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddArticle}
+                              className="btn-cinnabar px-3 py-1.5 text-sm"
+                            >
+                              添加
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {!showArticleRow && (
+                        <button
+                          type="button"
+                          onClick={() => setShowArticleRow(true)}
+                          className="btn-outline w-full py-2 text-sm flex items-center justify-center gap-1.5"
+                        >
+                          <FilePlus size={14} />
+                          添加篇目
+                        </button>
+                      )}
                     </div>
                   </div>
 

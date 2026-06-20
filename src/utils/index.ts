@@ -39,3 +39,8 @@ export function calculateProjectProgress(articles: { uploadStatus: string; autho
   }
   return Math.round((score / articles.length) * 100);
 }
+
+let idCounter = 10000;
+export function generateId(prefix: string): string {
+  return `${prefix}-${++idCounter}-${Date.now().toString(36)}`;
+}

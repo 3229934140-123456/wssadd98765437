@@ -53,11 +53,34 @@ const MEMBER_COLORS: Record<string, string> = {
   proofreader: "bg-ink-100 text-ink-600",
 };
 
+const getDaysSince = (dateStr: string | null): number => {
+  if (!dateStr) return -1;
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffTime = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
+const isRecentlyUpdated = (uploadedAt: string | null): boolean => {
+  const days = getDaysSince(uploadedAt);
+  return days >= 0 && days <= 7;
+};
+
+const formatUpdateTime = (uploadedAt: string | null): string => {
+  const days = getDaysSince(uploadedAt);
+  if (days < 0) return "";
+  if (days === 0) return "刚刚更新";
+  if (days === 1) return "1天前更新";
+  return `${days}天前更新`;
+};
+
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const rawProjects = useAppStore((s) => s.projects);
   const rawMembers = useAppStore((s) => s.members);
   const rawArticles = useAppStore((s) => s.articles);
+  const rawFileVersions = useAppStore((s) => s.fileVersions);
   const updateProject = useAppStore((s) => s.updateProject);
   const addMember = useAppStore((s) => s.addMember);
   const removeMember = useAppStore((s) => s.removeMember);
@@ -66,10 +89,22 @@ export default function ProjectPage() {
 
   const project = rawProjects.find((p) => p.id === projectId);
   const members = useMemo(() => rawMembers.filter((m) => m.projectId === projectId), [rawMembers, projectId]);
-  const articles = useMemo(
-    () => rawArticles.filter((a) => a.projectId === projectId).sort((a, b) => a.sortOrder - b.sortOrder),
-    [rawArticles, projectId]
-  );
+  const articles = useMemo(() => {
+    return rawArticles
+      .filter((a) => a.projectId === projectId)
+      .sort((a, b) => {
+        if (a.uploadStatus === "uploaded" && b.uploadStatus !== "uploaded") return -1;
+        if (a.uploadStatus !== "uploaded" && b.uploadStatus === "uploaded") return 1;
+        if (a.uploadStatus === "uploaded" && b.uploadStatus === "uploaded") {
+          if (a.uploadedAt && b.uploadedAt) {
+            return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+          }
+          if (a.uploadedAt) return -1;
+          if (b.uploadedAt) return 1;
+        }
+        return a.sortOrder - b.sortOrder;
+      });
+  }, [rawArticles, projectId]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -98,7 +133,8 @@ export default function ProjectPage() {
     const missingCover = articles.filter((a) => !a.hasCover).length;
     const unsignedAuth = articles.filter((a) => !a.authorizationSigned).length;
     const notUploaded = articles.filter((a) => a.uploadStatus === "pending").length;
-    return { missingCover, unsignedAuth, notUploaded };
+    const recentlyUpdated = articles.filter((a) => isRecentlyUpdated(a.uploadedAt)).length;
+    return { missingCover, unsignedAuth, notUploaded, recentlyUpdated };
   }, [articles]);
 
   if (!project) {
@@ -513,6 +549,10 @@ export default function ProjectPage() {
                   <AnimatePresence mode="popLayout">
                     {articles.map((article, i) => {
                       const assignee = rawMembers.find((m) => m.id === article.assigneeId);
+                      const versionsForArticle = rawFileVersions.filter((v) => v.articleId === article.id);
+                      const hasMultipleVersions = versionsForArticle.length > 1;
+                      const latestVersion = versionsForArticle.length > 0 ? Math.max(...versionsForArticle.map((v) => v.version)) : 1;
+                      const recentlyUpdated = isRecentlyUpdated(article.uploadedAt);
                       return (
                         <motion.tr
                           key={article.id}
@@ -523,12 +563,32 @@ export default function ProjectPage() {
                           transition={{ delay: i * 0.03 }}
                         >
                           <td className="py-3 px-3 font-medium text-ink-900">
-                            <NavLink
-                              to={`/project/${projectId}/upload`}
-                              className="hover:text-indigo transition-colors"
-                            >
-                              {article.title}
-                            </NavLink>
+                            <div className="flex flex-col gap-1">
+                              <NavLink
+                                to={`/project/${projectId}/upload`}
+                                className="hover:text-indigo transition-colors inline-flex items-center gap-2"
+                              >
+                                {article.title}
+                                {recentlyUpdated && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse-dot" />
+                                    <span className="stamp-new text-[10px]">
+                                      NEW
+                                    </span>
+                                  </span>
+                                )}
+                                {hasMultipleVersions && latestVersion > 1 && (
+                                  <span className="stamp-mark border bg-indigo/10 text-indigo border-indigo/20 text-[10px]">
+                                    已更新 v{latestVersion}
+                                  </span>
+                                )}
+                              </NavLink>
+                              {recentlyUpdated && (
+                                <span className="text-xs text-ink-400 font-normal">
+                                  {formatUpdateTime(article.uploadedAt)}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-3">
                             <span
@@ -560,8 +620,22 @@ export default function ProjectPage() {
                               {UPLOAD_STATUS_LABELS[article.uploadStatus]}
                             </span>
                           </td>
-                          <td className="py-3 px-3 text-center text-ink-600">
-                            {article.pageCount || "—"}
+                          <td className="py-3 px-3 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-ink-600">{article.pageCount || "—"}</span>
+                                {hasMultipleVersions && latestVersion > 1 && (
+                                  <span className="stamp-version text-[10px]">
+                                    v{latestVersion}
+                                  </span>
+                                )}
+                              </div>
+                              <span
+                                className={`stamp-mark border ${UPLOAD_STATUS_CLASSES[article.uploadStatus]} text-[9px]`}
+                              >
+                                {UPLOAD_STATUS_LABELS[article.uploadStatus]}
+                              </span>
+                            </div>
                           </td>
                           <td className="py-3 px-3 text-ink-400 text-xs font-mono">
                             {article.dimensions || "—"}
@@ -638,6 +712,17 @@ export default function ProjectPage() {
             )}
             <span className="font-medium">未上传</span>
             <span className="font-serif font-semibold">{stats.notUploaded}</span>
+          </div>
+          <div
+            className={`flex items-center gap-2.5 ${
+              stats.recentlyUpdated > 0 ? "text-green-600" : "text-ink-400"
+            }`}
+          >
+            {stats.recentlyUpdated > 0 && (
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse-dot" />
+            )}
+            <span className="font-medium">最近更新</span>
+            <span className="font-serif font-semibold">{stats.recentlyUpdated}</span>
           </div>
         </div>
       </motion.div>

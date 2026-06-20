@@ -73,6 +73,14 @@
     @apply stamp-mark bg-green-50 text-green-700 border border-green-200;
   }
 
+  .stamp-new {
+    @apply stamp-mark bg-green-50 text-green-700 border border-green-200;
+  }
+
+  .stamp-version {
+    @apply stamp-mark bg-ink-100 text-ink-600 border border-ink-200;
+  }
+
   .vertical-label {
     writing-mode: vertical-rl;
     text-orientation: mixed;

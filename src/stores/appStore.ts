@@ -1,12 +1,24 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Project, Member, Article, ProofreadIssue, PublishChecklist, ActivityLog, MemberRole, ProjectVisibility } from "@/types";
-import { seedProjects, seedMembers, seedArticles, seedProofreadIssues, seedPublishChecklists, seedActivities, CURRENT_USER_ID } from "@/mock/seed";
+import type { Project, Member, Article, ProofreadIssue, PublishChecklist, ActivityLog, MemberRole, FileVersion } from "@/types";
+import { seedProjects, seedMembers, seedArticles, seedFileVersions, seedProofreadIssues, seedPublishChecklists, seedActivities, CURRENT_USER_ID } from "@/mock/seed";
+
+interface NewProjectMember {
+  name: string;
+  role: MemberRole;
+}
+
+interface NewProjectArticle {
+  title: string;
+  type: "illustration" | "text" | "cover";
+  assigneeId: string;
+}
 
 interface AppState {
   projects: Project[];
   members: Member[];
   articles: Article[];
+  fileVersions: FileVersion[];
   proofreadIssues: ProofreadIssue[];
   publishChecklists: PublishChecklist[];
   activities: ActivityLog[];
@@ -16,6 +28,7 @@ interface AppState {
   getMembersByProject: (projectId: string) => Member[];
   getArticlesByProject: (projectId: string) => Article[];
   getArticlesByAssignee: (projectId: string, assigneeId: string) => Article[];
+  getFileVersionsByArticle: (articleId: string) => FileVersion[];
   getIssuesByProject: (projectId: string) => ProofreadIssue[];
   getIssuesByArticle: (articleId: string) => ProofreadIssue[];
   getChecklistByProject: (projectId: string) => PublishChecklist | undefined;
@@ -25,12 +38,16 @@ interface AppState {
   getCurrentUserTodos: () => { type: string; detail: string; projectId: string; projectName: string; deadline: string }[];
   setCurrentUserId: (id: string) => void;
 
-  addProject: (project: Omit<Project, "id" | "createdAt" | "status">) => string;
+  addProject: (
+    project: Omit<Project, "id" | "createdAt" | "status">,
+    members?: NewProjectMember[],
+    articles?: NewProjectArticle[]
+  ) => string;
   updateProject: (id: string, updates: Partial<Project>) => void;
-  addMember: (member: Omit<Member, "id">) => void;
+  addMember: (member: Omit<Member, "id">) => string;
   removeMember: (id: string) => void;
   updateMemberRole: (id: string, role: MemberRole) => void;
-  addArticle: (article: Omit<Article, "id" | "sortOrder">) => void;
+  addArticle: (article: Omit<Article, "id" | "sortOrder">) => string;
   removeArticle: (id: string) => void;
   updateArticle: (id: string, updates: Partial<Article>) => void;
   simulateUpload: (articleId: string, fileName: string) => void;
@@ -43,7 +60,7 @@ interface AppState {
   addActivity: (projectId: string, action: string, detail: string) => void;
 }
 
-let nextId = 100;
+let nextId = 1000;
 const genId = (prefix: string) => `${prefix}${++nextId}`;
 
 export const useAppStore = create<AppState>()(
@@ -52,6 +69,7 @@ export const useAppStore = create<AppState>()(
       projects: seedProjects,
       members: seedMembers,
       articles: seedArticles,
+      fileVersions: seedFileVersions,
       proofreadIssues: seedProofreadIssues,
       publishChecklists: seedPublishChecklists,
       activities: seedActivities,
@@ -61,6 +79,7 @@ export const useAppStore = create<AppState>()(
       getMembersByProject: (projectId) => get().members.filter((m) => m.projectId === projectId),
       getArticlesByProject: (projectId) => get().articles.filter((a) => a.projectId === projectId).sort((a, b) => a.sortOrder - b.sortOrder),
       getArticlesByAssignee: (projectId, assigneeId) => get().articles.filter((a) => a.projectId === projectId && a.assigneeId === assigneeId).sort((a, b) => a.sortOrder - b.sortOrder),
+      getFileVersionsByArticle: (articleId) => get().fileVersions.filter((v) => v.articleId === articleId).sort((a, b) => b.version - a.version),
       getIssuesByProject: (projectId) => get().proofreadIssues.filter((i) => i.projectId === projectId),
       getIssuesByArticle: (articleId) => get().proofreadIssues.filter((i) => i.articleId === articleId),
       getChecklistByProject: (projectId) => get().publishChecklists.find((c) => c.projectId === projectId),
@@ -112,40 +131,136 @@ export const useAppStore = create<AppState>()(
 
       setCurrentUserId: (id) => set({ currentUserId: id }),
 
-      addProject: (data) => {
+      addProject: (data, members, articles) => {
         const id = genId("p");
         const now = new Date().toISOString();
+        const userId = get().currentUserId;
+        const existingMember = get().members.find((m) => m.id === userId);
+        const organizerName = existingMember?.name ?? "未知用户";
+
         const project: Project = { ...data, id, status: "collecting", createdAt: now };
-        const member: Member = { id: genId("m"), projectId: id, name: "织梦", avatar: "", role: "organizer" };
+        const organizer: Member = { id: userId, projectId: id, name: organizerName, avatar: "", role: "organizer" };
         const checklist: PublishChecklist = { id: genId("pc"), projectId: id, contentRating: false, sampleRange: false, priceSet: false, revenueDistribution: false, takedownRules: false, readyToPublish: false };
-        set((s) => ({ projects: [...s.projects, project], members: [...s.members, member], publishChecklists: [...s.publishChecklists, checklist] }));
+
+        const newMembers: Member[] = [organizer];
+        const memberIdMap = new Map<string, string>();
+        if (members) {
+          for (const m of members) {
+            const existing = get().members.find((mem) => mem.name === m.name);
+            let memberId: string;
+            if (existing) {
+              memberId = existing.id;
+              const duplicate = newMembers.find((nm) => nm.id === memberId && nm.projectId === id);
+              if (!duplicate) {
+                newMembers.push({ id: memberId, projectId: id, name: m.name, avatar: "", role: m.role });
+              }
+            } else {
+              memberId = genId("m");
+              newMembers.push({ id: memberId, projectId: id, name: m.name, avatar: "", role: m.role });
+            }
+            memberIdMap.set(m.name, memberId);
+          }
+        }
+
+        const newArticles: Article[] = [];
+        if (articles) {
+          articles.forEach((a, idx) => {
+            let assigneeId = a.assigneeId;
+            if (memberIdMap.has(assigneeId)) {
+              assigneeId = memberIdMap.get(assigneeId)!;
+            }
+            if (!assigneeId && a.type === "cover") {
+              assigneeId = userId;
+            }
+            newArticles.push({
+              id: genId("a"),
+              projectId: id,
+              assigneeId,
+              title: a.title,
+              type: a.type,
+              sortOrder: idx,
+              uploadStatus: "pending",
+              pageCount: 0,
+              dimensions: "",
+              hasCover: false,
+              authorizationSigned: false,
+              uploadedAt: null,
+            });
+          });
+        }
+
+        const allMembers = [...get().members];
+        for (const m of newMembers) {
+          const exists = allMembers.find((am) => am.id === m.id && am.projectId === m.projectId);
+          if (!exists) {
+            allMembers.push(m);
+          }
+        }
+
+        set((s) => ({
+          projects: [...s.projects, project],
+          members: allMembers,
+          articles: [...s.articles, ...newArticles],
+          publishChecklists: [...s.publishChecklists, checklist],
+        }));
+
+        get().addActivity(id, "创建项目", `创建了合志「${project.name}」`);
         return id;
       },
+
       updateProject: (id, updates) => set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, ...updates } : p)) })),
-      addMember: (data) => set((s) => ({ members: [...s.members, { ...data, id: genId("m") }] })),
+
+      addMember: (data) => {
+        const id = genId("m");
+        set((s) => ({ members: [...s.members, { ...data, id }] }));
+        return id;
+      },
+
       removeMember: (id) => set((s) => ({ members: s.members.filter((m) => m.id !== id) })),
+
       updateMemberRole: (id, role) => set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, role } : m)) })),
+
       addArticle: (data) => {
         const projectArticles = get().articles.filter((a) => a.projectId === data.projectId);
         const sortOrder = projectArticles.length;
-        set((s) => ({ articles: [...s.articles, { ...data, id: genId("a"), sortOrder }] }));
+        const id = genId("a");
+        set((s) => ({ articles: [...s.articles, { ...data, id, sortOrder }] }));
+        return id;
       },
+
       removeArticle: (id) => set((s) => ({ articles: s.articles.filter((a) => a.id !== id) })),
+
       updateArticle: (id, updates) => set((s) => ({ articles: s.articles.map((a) => (a.id === id ? { ...a, ...updates } : a)) })),
+
       simulateUpload: (articleId, fileName) => {
         const now = new Date().toISOString();
-        const version = get().proofreadIssues.filter((i) => i.articleId === articleId).length + 1;
+        const existingVersions = get().fileVersions.filter((v) => v.articleId === articleId);
+        const version = existingVersions.length + 1;
+
+        const fileVersion: FileVersion = {
+          id: genId("fv"),
+          articleId,
+          fileName,
+          fileUrl: "",
+          version,
+          uploadedAt: now,
+        };
+
         set((s) => ({
           articles: s.articles.map((a) =>
             a.id === articleId ? { ...a, uploadStatus: "uploaded" as const, pageCount: Math.floor(Math.random() * 10) + 1, dimensions: "2480×3508", hasCover: true, uploadedAt: now } : a
           ),
+          fileVersions: [...s.fileVersions, fileVersion],
         }));
+
         const article = get().articles.find((a) => a.id === articleId);
         if (article) {
-          get().addActivity(article.projectId, "上传稿件", `上传了「${article.title}」`);
+          get().addActivity(article.projectId, version > 1 ? "更新稿件" : "上传稿件", `${version > 1 ? "更新了" : "上传了"}「${article.title}」v${version}`);
         }
       },
+
       signAuthorization: (articleId) => set((s) => ({ articles: s.articles.map((a) => (a.id === articleId ? { ...a, authorizationSigned: true } : a)) })),
+
       addProofreadIssue: (data) => {
         const now = new Date().toISOString();
         const issue: ProofreadIssue = { ...data, id: genId("pi"), createdAt: now, resolvedAt: null };
@@ -155,6 +270,7 @@ export const useAppStore = create<AppState>()(
           get().addActivity(data.projectId, "提交校对", `标注了「${article.title}」的问题`);
         }
       },
+
       resolveIssue: (id) => {
         const now = new Date().toISOString();
         set((s) => ({
@@ -168,6 +284,7 @@ export const useAppStore = create<AppState>()(
           }
         }
       },
+
       confirmIssue: (id) => {
         set((s) => ({
           proofreadIssues: s.proofreadIssues.map((i) => (i.id === id ? { ...i, status: "confirmed" as const } : i)),
@@ -180,6 +297,7 @@ export const useAppStore = create<AppState>()(
           }
         }
       },
+
       updateChecklist: (projectId, updates) => {
         const checklist = get().getChecklistByProject(projectId);
         if (!checklist) return;
@@ -190,12 +308,14 @@ export const useAppStore = create<AppState>()(
           publishChecklists: s.publishChecklists.map((c) => (c.projectId === projectId ? newChecklist : c)),
         }));
       },
+
       publishProject: (projectId) => {
         set((s) => ({
           projects: s.projects.map((p) => (p.id === projectId ? { ...p, status: "published" as const } : p)),
         }));
         get().addActivity(projectId, "发布上线", "刊物已正式发布");
       },
+
       addActivity: (projectId, action, detail) => {
         const now = new Date().toISOString();
         const user = get().getMemberById(get().currentUserId);
