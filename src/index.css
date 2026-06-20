@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.6;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #1a1a2e;
+    background-color: #f5f0e8;
+  }
+
+  body {
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(44, 62, 123, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(192, 57, 43, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 50% 80%, rgba(212, 168, 67, 0.02) 0%, transparent 50%);
+  }
+}
+
+@layer components {
+  .washi-texture {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9b898' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  .ink-card {
+    @apply bg-white/80 backdrop-blur-sm rounded-4xl border border-ink-100/50 shadow-ink transition-all duration-300;
+  }
+
+  .ink-card-hover {
+    @apply ink-card hover:shadow-ink-lg hover:-translate-y-0.5;
+  }
+
+  .btn-cinnabar {
+    @apply bg-cinnabar-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-cinnabar hover:bg-cinnabar-600 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200;
+  }
+
+  .btn-indigo {
+    @apply bg-indigo text-white px-5 py-2.5 rounded-xl font-medium shadow-ink hover:bg-indigo-light hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200;
+  }
+
+  .btn-outline {
+    @apply border-2 border-ink-200 text-ink-700 px-5 py-2.5 rounded-xl font-medium hover:border-ink-400 hover:text-ink-900 hover:bg-ink-50 transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply text-ink-600 px-3 py-2 rounded-lg hover:bg-ink-50 hover:text-ink-900 transition-all duration-200;
+  }
+
+  .stamp-mark {
+    @apply inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-serif font-semibold;
+  }
+
+  .stamp-collecting {
+    @apply stamp-mark bg-indigo/10 text-indigo border border-indigo/20;
+  }
+
+  .stamp-proofreading {
+    @apply stamp-mark bg-gold/15 text-gold-dark border border-gold/30;
+  }
+
+  .stamp-publishing {
+    @apply stamp-mark bg-cinnabar-50 text-cinnabar-600 border border-cinnabar-100;
+  }
+
+  .stamp-published {
+    @apply stamp-mark bg-green-50 text-green-700 border border-green-200;
+  }
+
+  .vertical-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.1em;
+  }
+
+  .scrollbar-washi {
+    scrollbar-width: thin;
+    scrollbar-color: #c9b898 transparent;
+  }
+
+  .scrollbar-washi::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-washi::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-washi::-webkit-scrollbar-thumb {
+    background-color: #c9b898;
+    border-radius: 3px;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
