@@ -55,6 +55,9 @@ interface ArticleCardProps {
   toggleVersion: (articleId: string) => void;
   handleUpload: (article: Article) => void;
   onSignAuth: (article: Article) => void;
+  isOrganizer: boolean;
+  isAssignee: boolean;
+  assigneeName: string;
 }
 
 function ArticleCard({
@@ -64,6 +67,9 @@ function ArticleCard({
   toggleVersion,
   handleUpload,
   onSignAuth,
+  isOrganizer,
+  isAssignee,
+  assigneeName,
 }: ArticleCardProps) {
   const typeInfo = typeConfig[article.type];
   const TypeIcon = typeInfo.icon;
@@ -86,9 +92,17 @@ function ArticleCard({
             </div>
             <div>
               <h3 className="font-serif font-semibold text-ink-900">{article.title}</h3>
-              <span className={`stamp-mark ${typeInfo.className} border text-[10px] mt-1`}>
-                {ARTICLE_TYPE_LABELS[article.type]}
-              </span>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className={`stamp-mark ${typeInfo.className} border text-[10px]`}>
+                  {ARTICLE_TYPE_LABELS[article.type]}
+                </span>
+                {isOrganizer && (
+                  <span className="text-[10px] text-ink-500 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-ink-300"></span>
+                    负责人：{assigneeName}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -108,7 +122,7 @@ function ArticleCard({
                   </span>
                   未签署
                 </span>
-                {isUploaded && (
+                {isUploaded && isAssignee && (
                   <button onClick={() => onSignAuth(article)} className="btn-cinnabar text-xs px-3 py-1.5">
                     签署授权
                   </button>
@@ -119,17 +133,28 @@ function ArticleCard({
         </div>
 
         {!isUploaded ? (
-          <button
-            onClick={() => handleUpload(article)}
-            className="w-full border-2 border-dashed border-ink-200 hover:border-indigo/40 rounded-2xl p-8 washi-texture transition-colors duration-200 group cursor-pointer"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-ink-50 group-hover:bg-indigo/10 flex items-center justify-center transition-colors">
-                <Upload size={20} className="text-ink-300 group-hover:text-indigo transition-colors" />
+          isAssignee ? (
+            <button
+              onClick={() => handleUpload(article)}
+              className="w-full border-2 border-dashed border-ink-200 hover:border-indigo/40 rounded-2xl p-8 washi-texture transition-colors duration-200 group cursor-pointer"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-ink-50 group-hover:bg-indigo/10 flex items-center justify-center transition-colors">
+                  <Upload size={20} className="text-ink-300 group-hover:text-indigo transition-colors" />
+                </div>
+                <span className="text-sm text-ink-400 group-hover:text-ink-600 transition-colors">点击或拖拽上传</span>
               </div>
-              <span className="text-sm text-ink-400 group-hover:text-ink-600 transition-colors">点击或拖拽上传</span>
+            </button>
+          ) : (
+            <div className="w-full border-2 border-dashed border-ink-100 rounded-2xl p-8 bg-washi-50/30">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-ink-50 flex items-center justify-center">
+                  <FileText size={20} className="text-ink-200" />
+                </div>
+                <span className="text-sm text-ink-300">等待负责人上传</span>
+              </div>
             </div>
-          </button>
+          )
         ) : (
           <div className="p-4 bg-washi-50/60 rounded-2xl">
             <div className="flex items-center gap-4 mb-3">
@@ -139,9 +164,16 @@ function ArticleCard({
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-ink-900 truncate" title={latestVersion?.fileName}>
-                  {latestVersion?.fileName}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium text-ink-900 truncate" title={latestVersion?.fileName}>
+                    {latestVersion?.fileName}
+                  </p>
+                  {latestVersion?.note && (
+                    <span className="bg-washi-100 text-ink-600 text-xs rounded px-2 py-0.5 flex-shrink-0">
+                      {latestVersion.note}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-ink-400 mt-1 flex items-center gap-1">
                   <Clock size={11} />
                   {latestVersion?.uploadedAt ? formatRelativeTime(latestVersion.uploadedAt) : ""}
@@ -170,13 +202,15 @@ function ArticleCard({
               <div className="flex-1">
                 <p className="text-sm text-ink-600">尺寸：{article.dimensions}</p>
               </div>
-              <button
-                onClick={() => handleUpload(article)}
-                className="btn-outline text-xs px-4 py-2"
-              >
-                <Upload size={12} className="inline mr-1.5" />
-                上传新版本
-              </button>
+              {isAssignee && (
+                <button
+                  onClick={() => handleUpload(article)}
+                  className="btn-outline text-xs px-4 py-2"
+                >
+                  <Upload size={12} className="inline mr-1.5" />
+                  上传新版本
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -239,6 +273,15 @@ function ArticleCard({
                             >
                               {version.fileName}
                             </p>
+                            {version.note && (
+                              <p
+                                className={`text-xs mt-0.5 italic ${
+                                  index === 0 ? "text-ink-400" : "text-ink-400"
+                                }`}
+                              >
+                                {version.note}
+                              </p>
+                            )}
                             <p className="text-[11px] text-ink-400 mt-0.5 flex items-center gap-1">
                               <Clock size={10} />
                               {formatRelativeTime(version.uploadedAt)}
@@ -269,11 +312,28 @@ export default function UploadPage() {
   const signAuthorization = useAppStore((s) => s.signAuthorization);
 
   const project = rawProjects.find((p) => p.id === projectId);
-  const articles = useMemo(
-    () => rawArticles.filter((a) => a.projectId === projectId && a.assigneeId === currentUserId).sort((a, b) => a.sortOrder - b.sortOrder),
-    [rawArticles, projectId, currentUserId]
-  );
   const currentMember = rawMembers.find((m) => m.id === currentUserId && m.projectId === projectId);
+  const isOrganizer = currentMember?.role === "organizer";
+  const articles = useMemo(
+    () =>
+      rawArticles
+        .filter((a) => {
+          if (a.projectId !== projectId) return false;
+          if (isOrganizer) return true;
+          return a.assigneeId === currentUserId;
+        })
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [rawArticles, projectId, currentUserId, isOrganizer]
+  );
+  const membersMap = useMemo(() => {
+    const map = new Map<string, string>();
+    rawMembers.forEach((m) => {
+      if (m.projectId === projectId) {
+        map.set(m.id, m.name);
+      }
+    });
+    return map;
+  }, [rawMembers, projectId]);
 
   const [authModalArticle, setAuthModalArticle] = useState<Article | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -287,7 +347,8 @@ export default function UploadPage() {
       const nextVersion = existingVersions.length + 1;
       const defaultName = `${article.title}_v${nextVersion}`;
       const fileName = window.prompt("请输入文件名（不含扩展名）：", defaultName) || defaultName;
-      simulateUpload(article.id, `${fileName}.${ext}`);
+      const note = window.prompt("上传备注（可选，如：初稿、改错字、补封面）：", "") || "";
+      simulateUpload(article.id, `${fileName}.${ext}`, note);
     },
     [simulateUpload, rawFileVersions]
   );
@@ -347,7 +408,7 @@ export default function UploadPage() {
       {articles.length === 0 ? (
         <div className="ink-card p-12 text-center">
           <Upload size={48} className="mx-auto text-ink-200 mb-4" />
-          <p className="text-ink-400">暂无分配给你的稿件</p>
+          <p className="text-ink-400">{isOrganizer ? "项目暂无稿件" : "暂无分配给你的稿件"}</p>
         </div>
       ) : (
         <motion.div className="grid gap-5" variants={containerVariants} initial="hidden" animate="visible">
@@ -360,6 +421,9 @@ export default function UploadPage() {
               toggleVersion={toggleVersion}
               handleUpload={handleUpload}
               onSignAuth={setAuthModalArticle}
+              isOrganizer={isOrganizer}
+              isAssignee={article.assigneeId === currentUserId}
+              assigneeName={membersMap.get(article.assigneeId) ?? "未知成员"}
             />
           ))}
         </motion.div>

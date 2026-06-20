@@ -77,18 +77,18 @@ export const seedArticles: Article[] = [
 ];
 
 export const seedFileVersions: FileVersion[] = [
-  { id: "fv1", articleId: "a1", fileName: "雪中寺_v1.png", fileUrl: "", version: 1, uploadedAt: "2026-05-10T14:00:00Z" },
-  { id: "fv2", articleId: "a2", fileName: "炉边夜话_v1.pdf", fileUrl: "", version: 1, uploadedAt: "2026-05-12T09:00:00Z" },
-  { id: "fv3", articleId: "a3", fileName: "冬之扉_v1.png", fileUrl: "", version: 1, uploadedAt: "2026-05-08T16:00:00Z" },
-  { id: "fv4", articleId: "a5", fileName: "归乡路_v1.pdf", fileUrl: "", version: 1, uploadedAt: "2026-05-15T11:00:00Z" },
-  { id: "fv5", articleId: "a5", fileName: "归乡路_v2.pdf", fileUrl: "", version: 2, uploadedAt: "2026-05-18T09:00:00Z" },
-  { id: "fv6", articleId: "a6", fileName: "花火夜_v1.png", fileUrl: "", version: 1, uploadedAt: "2026-04-20T10:00:00Z" },
-  { id: "fv7", articleId: "a7", fileName: "祭典之光_v1.png", fileUrl: "", version: 1, uploadedAt: "2026-04-22T15:00:00Z" },
-  { id: "fv8", articleId: "a8", fileName: "约定_v1.pdf", fileUrl: "", version: 1, uploadedAt: "2026-04-25T09:00:00Z" },
-  { id: "fv9", articleId: "a9", fileName: "墨痕封面_v1.png", fileUrl: "", version: 1, uploadedAt: "2026-03-01T10:00:00Z" },
-  { id: "fv10", articleId: "a10", fileName: "山水卷_v1.png", fileUrl: "", version: 1, uploadedAt: "2026-03-05T14:00:00Z" },
-  { id: "fv11", articleId: "a11", fileName: "墨痕序章_v1.pdf", fileUrl: "", version: 1, uploadedAt: "2026-03-10T08:00:00Z" },
-  { id: "fv12", articleId: "a12", fileName: "第十封信_v1.pdf", fileUrl: "", version: 1, uploadedAt: "2026-03-15T12:00:00Z" },
+  { id: "fv1", articleId: "a1", fileName: "雪中寺_v1.png", fileUrl: "", version: 1, note: "初稿", uploadedAt: "2026-05-10T14:00:00Z" },
+  { id: "fv2", articleId: "a2", fileName: "炉边夜话_v1.pdf", fileUrl: "", version: 1, note: "初稿", uploadedAt: "2026-05-12T09:00:00Z" },
+  { id: "fv3", articleId: "a3", fileName: "冬之扉_v1.png", fileUrl: "", version: 1, note: "封面初稿，待主催审核", uploadedAt: "2026-05-08T16:00:00Z" },
+  { id: "fv4", articleId: "a5", fileName: "归乡路_v1.pdf", fileUrl: "", version: 1, note: "初稿", uploadedAt: "2026-05-15T11:00:00Z" },
+  { id: "fv5", articleId: "a5", fileName: "归乡路_v2.pdf", fileUrl: "", version: 2, note: "修改第3页错别字和断句", uploadedAt: "2026-05-18T09:00:00Z" },
+  { id: "fv6", articleId: "a6", fileName: "花火夜_v1.png", fileUrl: "", version: 1, note: "封面定稿", uploadedAt: "2026-04-20T10:00:00Z" },
+  { id: "fv7", articleId: "a7", fileName: "祭典之光_v1.png", fileUrl: "", version: 1, note: "初稿", uploadedAt: "2026-04-22T15:00:00Z" },
+  { id: "fv8", articleId: "a8", fileName: "约定_v1.pdf", fileUrl: "", version: 1, note: "初稿，已自检", uploadedAt: "2026-04-25T09:00:00Z" },
+  { id: "fv9", articleId: "a9", fileName: "墨痕封面_v1.png", fileUrl: "", version: 1, note: "封面初稿", uploadedAt: "2026-03-01T10:00:00Z" },
+  { id: "fv10", articleId: "a10", fileName: "山水卷_v1.png", fileUrl: "", version: 1, note: "四页跨页插画", uploadedAt: "2026-03-05T14:00:00Z" },
+  { id: "fv11", articleId: "a11", fileName: "墨痕序章_v1.pdf", fileUrl: "", version: 1, note: "序章初稿", uploadedAt: "2026-03-10T08:00:00Z" },
+  { id: "fv12", articleId: "a12", fileName: "第十封信_v1.pdf", fileUrl: "", version: 1, note: "十页纪念文", uploadedAt: "2026-03-15T12:00:00Z" },
 ];
 
 export const seedProofreadIssues: ProofreadIssue[] = [

@@ -20,6 +20,7 @@ import {
   Save,
   Users,
   Calendar,
+  BarChart3,
 } from "lucide-react";
 
 const UPLOAD_STATUS_LABELS: Record<string, string> = {
@@ -81,6 +82,7 @@ export default function ProjectPage() {
   const rawMembers = useAppStore((s) => s.members);
   const rawArticles = useAppStore((s) => s.articles);
   const rawFileVersions = useAppStore((s) => s.fileVersions);
+  const rawProofreadIssues = useAppStore((s) => s.proofreadIssues);
   const updateProject = useAppStore((s) => s.updateProject);
   const addMember = useAppStore((s) => s.addMember);
   const removeMember = useAppStore((s) => s.removeMember);
@@ -106,6 +108,11 @@ export default function ProjectPage() {
       });
   }, [rawArticles, projectId]);
 
+  const proofreadIssues = useMemo(
+    () => rawProofreadIssues.filter((i) => i.projectId === projectId),
+    [rawProofreadIssues, projectId]
+  );
+
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -118,6 +125,7 @@ export default function ProjectPage() {
   const [newArticleTitle, setNewArticleTitle] = useState("");
   const [newArticleType, setNewArticleType] = useState<ArticleType>("illustration");
   const [newArticleAssigneeId, setNewArticleAssigneeId] = useState("");
+  const [filterMemberId, setFilterMemberId] = useState<string | null>(null);
 
   const progress = useMemo(() => calculateProjectProgress(articles), [articles]);
 
@@ -136,6 +144,45 @@ export default function ProjectPage() {
     const recentlyUpdated = articles.filter((a) => isRecentlyUpdated(a.uploadedAt)).length;
     return { missingCover, unsignedAuth, notUploaded, recentlyUpdated };
   }, [articles]);
+
+  const memberStats = useMemo(() => {
+    const result: Record<
+      string,
+      {
+        articles: typeof articles;
+        articleCount: number;
+        versionCount: number;
+        unsignedCount: number;
+        revisionCount: number;
+        openIssueCount: number;
+      }
+    > = {};
+    for (const member of members) {
+      const memberArticles = articles.filter((a) => a.assigneeId === member.id);
+      const articleIds = memberArticles.map((a) => a.id);
+      const versionCount = rawFileVersions.filter((v) => articleIds.includes(v.articleId)).length;
+      const unsignedCount = memberArticles.filter((a) => !a.authorizationSigned).length;
+      const revisionCount = memberArticles.filter((a) => a.uploadStatus === "revision").length;
+      const openIssueArticleIds = new Set(
+        proofreadIssues.filter((i) => i.status === "open" && articleIds.includes(i.articleId)).map((i) => i.articleId)
+      );
+      const openIssueCount = openIssueArticleIds.size;
+      result[member.id] = {
+        articles: memberArticles,
+        articleCount: memberArticles.length,
+        versionCount,
+        unsignedCount,
+        revisionCount,
+        openIssueCount,
+      };
+    }
+    return result;
+  }, [members, articles, rawFileVersions, proofreadIssues]);
+
+  const filteredArticles = useMemo(() => {
+    if (!filterMemberId) return articles;
+    return articles.filter((a) => a.assigneeId === filterMemberId);
+  }, [articles, filterMemberId]);
 
   if (!project) {
     return (
@@ -465,6 +512,43 @@ export default function ProjectPage() {
             </button>
           </div>
 
+          <div className="flex flex-wrap gap-2 items-center mb-4">
+            <button
+              onClick={() => setFilterMemberId(null)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+                filterMemberId === null
+                  ? "bg-indigo text-white shadow-sm"
+                  : "bg-washi-50 text-ink-600 hover:bg-ink-100 border border-ink-200"
+              }`}
+            >
+              全部 ({articles.length})
+            </button>
+            {members.map((member) => {
+              const count = memberArticleCounts[member.id] || 0;
+              const isSelected = filterMemberId === member.id;
+              return (
+                <button
+                  key={member.id}
+                  onClick={() => setFilterMemberId(member.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 inline-flex items-center gap-1.5 ${
+                    isSelected
+                      ? "bg-indigo text-white shadow-sm"
+                      : "bg-washi-50 text-ink-600 hover:bg-ink-100 border border-ink-200"
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-serif font-semibold ${
+                      isSelected ? "bg-white/20 text-white" : MEMBER_COLORS[member.role] ?? "bg-ink-50 text-ink-600"
+                    }`}
+                  >
+                    {getInitials(member.name)}
+                  </span>
+                  {member.name} ({count})
+                </button>
+              );
+            })}
+          </div>
+
           <AnimatePresence>
             {showAddArticle && (
               <motion.div
@@ -524,10 +608,10 @@ export default function ProjectPage() {
             )}
           </AnimatePresence>
 
-          {articles.length === 0 ? (
+          {filteredArticles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-ink-300">
               <p className="font-serif text-lg mb-1">暂无篇目</p>
-              <p className="text-sm">点击上方按钮添加第一篇稿件</p>
+              <p className="text-sm">{filterMemberId ? "该成员暂无负责篇目" : "点击上方按钮添加第一篇稿件"}</p>
             </div>
           ) : (
             <div className="overflow-x-auto -mx-2">
@@ -547,11 +631,14 @@ export default function ProjectPage() {
                 </thead>
                 <tbody>
                   <AnimatePresence mode="popLayout">
-                    {articles.map((article, i) => {
+                    {filteredArticles.map((article, i) => {
                       const assignee = rawMembers.find((m) => m.id === article.assigneeId);
-                      const versionsForArticle = rawFileVersions.filter((v) => v.articleId === article.id);
+                      const versionsForArticle = rawFileVersions
+                        .filter((v) => v.articleId === article.id)
+                        .sort((a, b) => b.version - a.version);
                       const hasMultipleVersions = versionsForArticle.length > 1;
-                      const latestVersion = versionsForArticle.length > 0 ? Math.max(...versionsForArticle.map((v) => v.version)) : 1;
+                      const latestVersionObj = versionsForArticle[0];
+                      const latestVersion = latestVersionObj ? latestVersionObj.version : 1;
                       const recentlyUpdated = isRecentlyUpdated(article.uploadedAt);
                       return (
                         <motion.tr
@@ -566,7 +653,7 @@ export default function ProjectPage() {
                             <div className="flex flex-col gap-1">
                               <NavLink
                                 to={`/project/${projectId}/upload`}
-                                className="hover:text-indigo transition-colors inline-flex items-center gap-2"
+                                className="hover:text-indigo transition-colors inline-flex items-center gap-2 flex-wrap"
                               >
                                 {article.title}
                                 {recentlyUpdated && (
@@ -578,8 +665,16 @@ export default function ProjectPage() {
                                   </span>
                                 )}
                                 {hasMultipleVersions && latestVersion > 1 && (
-                                  <span className="stamp-mark border bg-indigo/10 text-indigo border-indigo/20 text-[10px]">
+                                  <span className="stamp-mark border bg-indigo/10 text-indigo border-indigo/20 text-[10px] inline-flex items-center gap-1">
                                     已更新 v{latestVersion}
+                                    {latestVersionObj?.note && (
+                                      <span className="text-xs text-ink-500 font-normal">（{latestVersionObj.note}）</span>
+                                    )}
+                                  </span>
+                                )}
+                                {(!hasMultipleVersions || latestVersion <= 1) && latestVersionObj?.note && recentlyUpdated && (
+                                  <span className="text-xs text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">
+                                    {latestVersionObj.note}
                                   </span>
                                 )}
                               </NavLink>
@@ -625,8 +720,11 @@ export default function ProjectPage() {
                               <div className="flex items-center justify-center gap-1">
                                 <span className="text-ink-600">{article.pageCount || "—"}</span>
                                 {hasMultipleVersions && latestVersion > 1 && (
-                                  <span className="stamp-version text-[10px]">
+                                  <span className="stamp-version text-[10px] inline-flex items-center gap-0.5">
                                     v{latestVersion}
+                                    {latestVersionObj?.note && (
+                                      <span className="text-[9px] text-ink-500 font-normal">（{latestVersionObj.note}）</span>
+                                    )}
                                   </span>
                                 )}
                               </div>
@@ -672,6 +770,134 @@ export default function ProjectPage() {
           )}
         </motion.div>
       </div>
+
+      <motion.div
+        className="ink-card p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+      >
+        <h2 className="text-lg font-serif font-semibold text-ink-900 mb-5 flex items-center gap-2">
+          <BarChart3 size={18} className="text-indigo" />
+          协作总览
+        </h2>
+
+        {members.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-ink-300">
+            <p className="font-serif text-lg mb-1">暂无成员</p>
+            <p className="text-sm">请先添加参与人员</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {members.map((member, i) => {
+              const stats = memberStats[member.id];
+              const memberArticles = stats?.articles ?? [];
+              const isSelected = filterMemberId === member.id;
+              return (
+                <motion.div
+                  key={member.id}
+                  onClick={() => setFilterMemberId(isSelected ? null : member.id)}
+                  className={`rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
+                    isSelected
+                      ? "border-indigo ring-2 ring-indigo/20 bg-indigo/5"
+                      : "border-ink-100 bg-white hover:border-indigo/40 hover:shadow-md"
+                  }`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <div className="p-4 border-b border-ink-50 bg-washi-50/40">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-serif font-semibold flex-shrink-0 ${
+                          MEMBER_COLORS[member.role] ?? "bg-ink-50 text-ink-600"
+                        }`}
+                      >
+                        {getInitials(member.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-ink-900 truncate">{member.name}</p>
+                      </div>
+                      <RoleBadge role={member.role} />
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] text-ink-400">负责篇目</p>
+                        <p className="text-lg font-serif font-bold text-ink-900">{stats?.articleCount ?? 0}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] text-ink-400">上传版数</p>
+                        <p className="text-lg font-serif font-bold text-indigo">{stats?.versionCount ?? 0}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] text-ink-400">未签授权</p>
+                        <p
+                          className={`text-lg font-serif font-bold ${
+                            (stats?.unsignedCount ?? 0) > 0 ? "text-cinnabar-500" : "text-green-600"
+                          }`}
+                        >
+                          {stats?.unsignedCount ?? 0}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] text-ink-400">待修改</p>
+                        <p
+                          className={`text-lg font-serif font-bold ${
+                            (stats?.revisionCount ?? 0) > 0 ? "text-gold-dark" : "text-ink-600"
+                          }`}
+                        >
+                          {stats?.revisionCount ?? 0}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5 col-span-2">
+                        <p className="text-[11px] text-ink-400">待处理标注（篇目数）</p>
+                        <p
+                          className={`text-lg font-serif font-bold ${
+                            (stats?.openIssueCount ?? 0) > 0 ? "text-cinnabar-500" : "text-green-600"
+                          }`}
+                        >
+                          {stats?.openIssueCount ?? 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] text-ink-400 mb-1">负责篇目</p>
+                      {memberArticles.length === 0 ? (
+                        <p className="text-xs text-ink-300 italic">暂未分配篇目</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {memberArticles.map((article) => (
+                            <span
+                              key={article.id}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] border ${
+                                article.uploadStatus === "pending"
+                                  ? "bg-ink-50 text-ink-400 border-ink-100 line-through decoration-ink-300/60"
+                                  : "bg-washi-50 text-ink-700 border-ink-100"
+                              }`}
+                              title={article.title}
+                            >
+                              <span
+                                className={`stamp-mark border !py-0 !px-1 ${ARTICLE_TYPE_CLASSES[article.type]} text-[9px]`}
+                              >
+                                {ARTICLE_TYPE_LABELS[article.type]}
+                              </span>
+                              <span className="max-w-[80px] truncate">{article.title}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
 
       <motion.div
         className="fixed bottom-0 left-56 right-0 bg-white/90 backdrop-blur-md border-t border-ink-100/50 px-8 py-3.5 z-40"

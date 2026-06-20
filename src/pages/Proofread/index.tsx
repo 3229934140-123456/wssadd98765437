@@ -18,6 +18,10 @@ import {
   Filter,
   SortDesc,
   ChevronDown,
+  CheckSquare,
+  Square,
+  Check,
+  User,
 } from "lucide-react";
 
 const STATUS_ORDER: Record<IssueStatus, number> = {
@@ -70,6 +74,7 @@ export default function Proofread() {
   const addProofreadIssue = useAppStore((s) => s.addProofreadIssue);
   const resolveIssue = useAppStore((s) => s.resolveIssue);
   const confirmIssue = useAppStore((s) => s.confirmIssue);
+  const batchConfirmIssues = useAppStore((s) => s.batchConfirmIssues);
 
   const project = rawProjects.find((p) => p.id === projectId);
   const articles = useMemo(
@@ -98,8 +103,12 @@ export default function Proofread() {
   const [filterArticleId, setFilterArticleId] = useState<string | "all">("all");
   const [filterType, setFilterType] = useState<IssueType | "all">("all");
   const [filterStatus, setFilterStatus] = useState<IssueStatus | "all">("all");
+  const [filterAssigneeId, setFilterAssigneeId] = useState<string | "all">("all");
   const [showArticleDropdown, setShowArticleDropdown] = useState(false);
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
+  const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -108,6 +117,12 @@ export default function Proofread() {
         !dropdownRef.current.contains(e.target as Node)
       ) {
         setShowArticleDropdown(false);
+      }
+      if (
+        assigneeDropdownRef.current &&
+        !assigneeDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowAssigneeDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -131,6 +146,10 @@ export default function Proofread() {
     if (filterStatus !== "all") {
       result = result.filter((i) => i.status === filterStatus);
     }
+    if (filterAssigneeId !== "all") {
+      const ids = articles.filter((a) => a.assigneeId === filterAssigneeId).map((a) => a.id);
+      result = result.filter((i) => ids.includes(i.articleId));
+    }
 
     result.sort((a, b) => {
       const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
@@ -139,7 +158,7 @@ export default function Proofread() {
     });
 
     return result;
-  }, [allIssues, filterArticleId, filterType, filterStatus]);
+  }, [allIssues, filterArticleId, filterType, filterStatus, filterAssigneeId, articles]);
 
   const groupedIssues = useMemo(() => {
     const groups: Record<IssueStatus, typeof filteredIssues> = {
@@ -194,6 +213,57 @@ export default function Proofread() {
     return article?.assigneeId === currentUserId;
   };
   const isOrganizer = currentMember?.role === "organizer";
+
+  const assigneeMembers = useMemo(() => {
+    const assigneeIds = new Set(articles.map((a) => a.assigneeId));
+    return members.filter((m) => assigneeIds.has(m.id));
+  }, [members, articles]);
+
+  const assigneeOpenCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    members.forEach((m) => {
+      const myArticleIds = articles
+        .filter((a) => a.assigneeId === m.id)
+        .map((a) => a.id);
+      const count = allIssues.filter(
+        (i) => i.status === "open" && myArticleIds.includes(i.articleId)
+      ).length;
+      if (count > 0 || myArticleIds.length > 0) {
+        map[m.id] = count;
+      }
+    });
+    return map;
+  }, [members, articles, allIssues]);
+
+  const resolvedIssueIds = useMemo(() => {
+    return allIssues
+      .filter((i) => i.status === "resolved")
+      .map((i) => i.id);
+  }, [allIssues]);
+
+  const handleToggleIssueSelect = (issueId: string) => {
+    setSelectedIssueIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(issueId)) {
+        next.delete(issueId);
+      } else {
+        next.add(issueId);
+      }
+      return next;
+    });
+  };
+
+  const handleBatchConfirm = () => {
+    if (selectedIssueIds.size === 0) return;
+    batchConfirmIssues(Array.from(selectedIssueIds));
+    setSelectedIssueIds(new Set());
+  };
+
+  const handleConfirmAllResolved = () => {
+    if (resolvedIssueIds.length === 0) return;
+    batchConfirmIssues(resolvedIssueIds);
+    setSelectedIssueIds(new Set());
+  };
 
   if (!project) {
     return (
@@ -424,6 +494,59 @@ export default function Proofread() {
                   </span>
                 </div>
 
+                {assigneeMembers.length > 0 && (
+                  <div className="px-3 py-2.5 border-b border-ink-100/50 overflow-x-auto scrollbar-washi">
+                    <div className="flex gap-2">
+                      {assigneeMembers.map((member) => {
+                        const count = assigneeOpenCounts[member.id] ?? 0;
+                        const isActive = filterAssigneeId === member.id && filterStatus === "open";
+                        return (
+                          <button
+                            key={member.id}
+                            onClick={() => {
+                              setFilterAssigneeId(member.id);
+                              setFilterStatus("open");
+                            }}
+                            className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all ${
+                              isActive
+                                ? "bg-cinnabar-50 border-cinnabar-200 text-cinnabar-700"
+                                : count > 0
+                                ? "bg-washi-50 border-ink-100 text-ink-600 hover:border-cinnabar-200 hover:bg-cinnabar-50/30"
+                                : "bg-washi-50/50 border-ink-100/60 text-ink-400"
+                            }`}
+                          >
+                            {member.avatar ? (
+                              <img
+                                src={member.avatar}
+                                alt={member.name}
+                                className="w-4 h-4 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-ink-100 flex items-center justify-center">
+                                <User size={8} className="text-ink-400" />
+                              </div>
+                            )}
+                            <span className="text-[10px] font-medium whitespace-nowrap">
+                              {member.name}
+                            </span>
+                            <span
+                              className={`text-[9px] font-semibold px-1 rounded ${
+                                count > 0
+                                  ? isActive
+                                    ? "bg-cinnabar-500 text-white"
+                                    : "bg-cinnabar-100 text-cinnabar-700"
+                                  : "bg-ink-100 text-ink-400"
+                              }`}
+                            >
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="px-4 py-3 border-b border-ink-100/50 space-y-3">
                   <div className="flex items-center gap-2">
                     <Filter size={14} className="text-ink-400 flex-shrink-0" />
@@ -569,6 +692,104 @@ export default function Proofread() {
                       )}
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <User size={14} className="text-ink-400 flex-shrink-0" />
+                    <div className="relative flex-1" ref={assigneeDropdownRef}>
+                      <button
+                        onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
+                        className="w-full flex items-center justify-between px-3 py-1.5 bg-washi-50/60 border border-ink-100/60 rounded-lg text-xs text-ink-700 hover:bg-washi-50 transition-colors"
+                      >
+                        <span className="truncate">
+                          {filterAssigneeId === "all"
+                            ? "全部负责人"
+                            : members.find((m) => m.id === filterAssigneeId)?.name ??
+                              "全部负责人"}
+                        </span>
+                        <ChevronDown size={14} className="text-ink-400" />
+                      </button>
+                      <AnimatePresence>
+                        {showAssigneeDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            className="absolute top-full left-0 right-0 mt-1 bg-white border border-ink-100 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto"
+                          >
+                            <button
+                              onClick={() => {
+                                setFilterAssigneeId("all");
+                                setShowAssigneeDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs hover:bg-ink-50 transition-colors ${
+                                filterAssigneeId === "all"
+                                  ? "text-cinnabar-600 bg-cinnabar-50/50"
+                                  : "text-ink-700"
+                              }`}
+                            >
+                              全部负责人
+                            </button>
+                            {assigneeMembers.map((member) => (
+                              <button
+                                key={member.id}
+                                onClick={() => {
+                                  setFilterAssigneeId(member.id);
+                                  setShowAssigneeDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs hover:bg-ink-50 transition-colors flex items-center gap-2 ${
+                                  filterAssigneeId === member.id
+                                    ? "text-cinnabar-600 bg-cinnabar-50/50"
+                                    : "text-ink-700"
+                                }`}
+                              >
+                                {member.avatar ? (
+                                  <img
+                                    src={member.avatar}
+                                    alt={member.name}
+                                    className="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full bg-ink-100 flex items-center justify-center flex-shrink-0">
+                                    <User size={8} className="text-ink-400" />
+                                  </div>
+                                )}
+                                <span className="truncate">{member.name}</span>
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  {isOrganizer && (selectedIssueIds.size > 0 || resolvedIssueIds.length > 0) && (
+                    <div className="flex gap-2 pt-1">
+                      {selectedIssueIds.size > 0 && (
+                        <motion.button
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleBatchConfirm}
+                          className="flex-1 btn-cinnabar !px-3 !py-1.5 !text-[11px] !rounded-lg flex items-center justify-center gap-1"
+                        >
+                          <CheckSquare size={12} />
+                          确认选中 {selectedIssueIds.size} 项
+                        </motion.button>
+                      )}
+                      {resolvedIssueIds.length > 0 && (
+                        <motion.button
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleConfirmAllResolved}
+                          className="flex-1 btn-indigo !px-3 !py-1.5 !text-[11px] !rounded-lg flex items-center justify-center gap-1"
+                        >
+                          <Check size={12} />
+                          全部确认已处理 ({resolvedIssueIds.length})
+                        </motion.button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto scrollbar-washi p-3 space-y-5">
@@ -641,6 +862,30 @@ export default function Proofread() {
                                       className="bg-washi-50/80 rounded-xl p-3 border border-ink-100/30"
                                     >
                                       <div className="flex items-start gap-2">
+                                        {isOrganizer && issue.status === "resolved" && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleToggleIssueSelect(issue.id);
+                                            }}
+                                            className="mt-0.5 flex-shrink-0 transition-colors"
+                                          >
+                                            {selectedIssueIds.has(issue.id) ? (
+                                              <CheckSquare
+                                                size={16}
+                                                className="text-cinnabar-500"
+                                              />
+                                            ) : (
+                                              <Square
+                                                size={16}
+                                                className="text-ink-300 hover:text-ink-500"
+                                              />
+                                            )}
+                                          </button>
+                                        )}
+                                        {isOrganizer && issue.status !== "resolved" && (
+                                          <div className="mt-0.5 w-4 h-4 flex-shrink-0" />
+                                        )}
                                         <span
                                           className={`stamp-mark ${cfg?.badgeClass} border text-[10px] flex-shrink-0`}
                                         >

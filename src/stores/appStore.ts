@@ -50,11 +50,12 @@ interface AppState {
   addArticle: (article: Omit<Article, "id" | "sortOrder">) => string;
   removeArticle: (id: string) => void;
   updateArticle: (id: string, updates: Partial<Article>) => void;
-  simulateUpload: (articleId: string, fileName: string) => void;
+  simulateUpload: (articleId: string, fileName: string, note?: string) => void;
   signAuthorization: (articleId: string) => void;
   addProofreadIssue: (issue: Omit<ProofreadIssue, "id" | "createdAt" | "resolvedAt">) => void;
   resolveIssue: (id: string) => void;
   confirmIssue: (id: string) => void;
+  batchConfirmIssues: (ids: string[]) => void;
   updateChecklist: (projectId: string, updates: Partial<PublishChecklist>) => void;
   publishProject: (projectId: string) => void;
   addActivity: (projectId: string, action: string, detail: string) => void;
@@ -232,7 +233,7 @@ export const useAppStore = create<AppState>()(
 
       updateArticle: (id, updates) => set((s) => ({ articles: s.articles.map((a) => (a.id === id ? { ...a, ...updates } : a)) })),
 
-      simulateUpload: (articleId, fileName) => {
+      simulateUpload: (articleId, fileName, note) => {
         const now = new Date().toISOString();
         const existingVersions = get().fileVersions.filter((v) => v.articleId === articleId);
         const version = existingVersions.length + 1;
@@ -243,19 +244,20 @@ export const useAppStore = create<AppState>()(
           fileName,
           fileUrl: "",
           version,
+          note: note ?? "",
           uploadedAt: now,
         };
 
         set((s) => ({
           articles: s.articles.map((a) =>
-            a.id === articleId ? { ...a, uploadStatus: "uploaded" as const, pageCount: Math.floor(Math.random() * 10) + 1, dimensions: "2480×3508", hasCover: true, uploadedAt: now } : a
+            a.id === articleId ? { ...a, uploadStatus: version > 1 ? ("revision" as const) : ("uploaded" as const), pageCount: Math.floor(Math.random() * 10) + 1, dimensions: "2480×3508", hasCover: true, uploadedAt: now } : a
           ),
           fileVersions: [...s.fileVersions, fileVersion],
         }));
 
         const article = get().articles.find((a) => a.id === articleId);
         if (article) {
-          get().addActivity(article.projectId, version > 1 ? "更新稿件" : "上传稿件", `${version > 1 ? "更新了" : "上传了"}「${article.title}」v${version}`);
+          get().addActivity(article.projectId, version > 1 ? "更新稿件" : "上传稿件", `${version > 1 ? "更新了" : "上传了"}「${article.title}」v${version}${note ? ` - ${note}` : ""}`);
         }
       },
 
@@ -295,6 +297,22 @@ export const useAppStore = create<AppState>()(
           if (article) {
             get().addActivity(issue.projectId, "确认校对", `确认了「${article.title}」的校对标注`);
           }
+        }
+      },
+
+      batchConfirmIssues: (ids) => {
+        if (ids.length === 0) return;
+        const now = new Date().toISOString();
+        const idSet = new Set(ids);
+        set((s) => ({
+          proofreadIssues: s.proofreadIssues.map((i) =>
+            idSet.has(i.id) && i.status === "resolved" ? { ...i, status: "confirmed" as const } : i
+          ),
+        }));
+        const issues = get().proofreadIssues.filter((i) => idSet.has(i.id));
+        const projectId = issues[0]?.projectId;
+        if (projectId) {
+          get().addActivity(projectId, "批量确认校对", `批量确认了 ${ids.length} 条校对标注`);
         }
       },
 

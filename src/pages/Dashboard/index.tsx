@@ -494,8 +494,8 @@ export default function Dashboard() {
               transition={{ duration: 0.3, type: "spring", bounce: 0 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg"
             >
-              <div className="ink-card p-6 mx-4">
-                <div className="flex items-center justify-between mb-6">
+              <div className="ink-card mx-4 overflow-hidden">
+                <div className="flex items-center justify-between p-6 pb-4 border-b border-ink-50">
                   <h2 className="text-xl font-serif font-bold text-ink-900">新建合志</h2>
                   <button
                     onClick={() => setShowModal(false)}
@@ -572,342 +572,343 @@ export default function Dashboard() {
                     setErrors({});
                     setShowModal(false);
                   }}
-                  className="space-y-4"
                 >
-                  <div>
-                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                      刊物名称
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => {
-                        setFormData({ ...formData, name: e.target.value });
-                        if (errors.name) setErrors({ ...errors, name: "" });
-                      }}
-                      placeholder="例如：星霜纪年·冬之卷"
-                      className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
-                        errors.name
-                          ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
-                          : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
-                      }`}
-                    />
-                    {errors.name && (
-                      <p className="mt-1 text-xs text-cinnabar-500">{errors.name}</p>
-                    )}
-                  </div>
+                  <div className="max-h-[70vh] overflow-y-auto px-1 p-5 pt-4 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                        刊物名称
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => {
+                          setFormData({ ...formData, name: e.target.value });
+                          if (errors.name) setErrors({ ...errors, name: "" });
+                        }}
+                        placeholder="例如：星霜纪年·冬之卷"
+                        className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
+                          errors.name
+                            ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
+                            : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
+                        }`}
+                      />
+                      {errors.name && (
+                        <p className="mt-1 text-xs text-cinnabar-500">{errors.name}</p>
+                      )}
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                      简介
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => {
-                        setFormData({ ...formData, description: e.target.value });
-                        if (errors.description) setErrors({ ...errors, description: "" });
-                      }}
-                      placeholder="简要描述这本合志的主题和内容..."
-                      rows={3}
-                      className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 resize-none ${
-                        errors.description
-                          ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
-                          : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
-                      }`}
-                    />
-                    {errors.description && (
-                      <p className="mt-1 text-xs text-cinnabar-500">{errors.description}</p>
-                    )}
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                        简介
+                      </label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => {
+                          setFormData({ ...formData, description: e.target.value });
+                          if (errors.description) setErrors({ ...errors, description: "" });
+                        }}
+                        placeholder="简要描述这本合志的主题和内容..."
+                        rows={3}
+                        className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 resize-none ${
+                          errors.description
+                            ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
+                            : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
+                        }`}
+                      />
+                      {errors.description && (
+                        <p className="mt-1 text-xs text-cinnabar-500">{errors.description}</p>
+                      )}
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                      <Calendar size={14} className="inline mr-1.5 -mt-0.5" />
-                      截稿日期
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.deadline}
-                      onChange={(e) => {
-                        setFormData({ ...formData, deadline: e.target.value });
-                        if (errors.deadline) setErrors({ ...errors, deadline: "" });
-                      }}
-                      className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
-                        errors.deadline
-                          ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
-                          : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
-                      }`}
-                    />
-                    {errors.deadline && (
-                      <p className="mt-1 text-xs text-cinnabar-500">{errors.deadline}</p>
-                    )}
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                        <Calendar size={14} className="inline mr-1.5 -mt-0.5" />
+                        截稿日期
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.deadline}
+                        onChange={(e) => {
+                          setFormData({ ...formData, deadline: e.target.value });
+                          if (errors.deadline) setErrors({ ...errors, deadline: "" });
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
+                          errors.deadline
+                            ? "border-cinnabar-300 bg-cinnabar-50/50 focus:border-cinnabar-400"
+                            : "border-ink-100 bg-white hover:border-ink-200 focus:border-indigo"
+                        }`}
+                      />
+                      {errors.deadline && (
+                        <p className="mt-1 text-xs text-cinnabar-500">{errors.deadline}</p>
+                      )}
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                      <Globe size={14} className="inline mr-1.5 -mt-0.5" />
-                      公开范围
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(
-                        [
-                          { value: "public", label: "公开", desc: "所有人可见" },
-                          { value: "link", label: "仅链接", desc: "链接访问" },
-                          { value: "private", label: "私密", desc: "仅成员" },
-                        ] as { value: ProjectVisibility; label: string; desc: string }[]
-                      ).map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() =>
-                            setFormData({ ...formData, visibility: opt.value })
-                          }
-                          className={`p-2.5 rounded-xl border-2 text-left transition-all ${
-                            formData.visibility === opt.value
-                              ? "border-indigo bg-indigo/5"
-                              : "border-ink-100 bg-white hover:border-ink-200"
-                          }`}
-                        >
-                          <p
-                            className={`text-sm font-medium ${
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                        <Globe size={14} className="inline mr-1.5 -mt-0.5" />
+                        公开范围
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(
+                          [
+                            { value: "public", label: "公开", desc: "所有人可见" },
+                            { value: "link", label: "仅链接", desc: "链接访问" },
+                            { value: "private", label: "私密", desc: "仅成员" },
+                          ] as { value: ProjectVisibility; label: string; desc: string }[]
+                        ).map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() =>
+                              setFormData({ ...formData, visibility: opt.value })
+                            }
+                            className={`p-2.5 rounded-xl border-2 text-left transition-all ${
                               formData.visibility === opt.value
-                                ? "text-indigo"
-                                : "text-ink-700"
+                                ? "border-indigo bg-indigo/5"
+                                : "border-ink-100 bg-white hover:border-ink-200"
                             }`}
                           >
-                            {opt.label}
-                          </p>
-                          <p className="text-[10px] text-ink-400 mt-0.5">{opt.desc}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                      <UserPlus size={14} className="inline mr-1.5 -mt-0.5" />
-                      参与人员
-                    </label>
-                    <div className="space-y-2">
-                      {members.map((member) => (
-                        <div
-                          key={member.tempId}
-                          className="flex items-center gap-3 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100"
-                        >
-                          <div
-                            className={`w-9 h-9 rounded-full ${ROLE_COLORS[member.role]} text-white flex items-center justify-center text-sm font-medium shrink-0`}
-                          >
-                            {getInitials(member.name)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-ink-700 truncate">
-                              {member.name}
-                              {member.isCurrentUser && (
-                                <span className="text-ink-400 text-xs ml-1.5">(你)</span>
-                              )}
+                            <p
+                              className={`text-sm font-medium ${
+                                formData.visibility === opt.value
+                                  ? "text-indigo"
+                                  : "text-ink-700"
+                              }`}
+                            >
+                              {opt.label}
                             </p>
-                            <span
-                              className={`inline-block text-[10px] px-1.5 py-0.5 rounded mt-0.5 ${ROLE_BG_COLORS[member.role]}`}
-                            >
-                              {ROLE_LABELS[member.role]}
-                            </span>
-                          </div>
-                          {!member.isCurrentUser && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMember(member.tempId)}
-                              className="btn-ghost p-1.5 hover:bg-ink-100 rounded-lg shrink-0"
-                            >
-                              <X size={14} className="text-ink-400" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-
-                      {showMemberRow && (
-                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100">
-                          <input
-                            type="text"
-                            value={newMember.name}
-                            onChange={(e) =>
-                              setNewMember({ ...newMember, name: e.target.value })
-                            }
-                            placeholder="成员名称"
-                            className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
-                            autoFocus
-                          />
-                          <select
-                            value={newMember.role}
-                            onChange={(e) =>
-                              setNewMember({
-                                ...newMember,
-                                role: e.target.value as MemberRole,
-                              })
-                            }
-                            className="px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
-                          >
-                            <option value="organizer">{ROLE_LABELS.organizer}</option>
-                            <option value="artist">{ROLE_LABELS.artist}</option>
-                            <option value="writer">{ROLE_LABELS.writer}</option>
-                            <option value="proofreader">{ROLE_LABELS.proofreader}</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={handleAddMember}
-                            className="btn-cinnabar px-3 py-2 text-sm"
-                          >
-                            添加
+                            <p className="text-[10px] text-ink-400 mt-0.5">{opt.desc}</p>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowMemberRow(false);
-                              setNewMember({ name: "", role: "artist" });
-                            }}
-                            className="btn-ghost p-2 hover:bg-ink-100 rounded-lg"
-                          >
-                            <X size={16} className="text-ink-400" />
-                          </button>
-                        </div>
-                      )}
-
-                      {!showMemberRow && (
-                        <button
-                          type="button"
-                          onClick={() => setShowMemberRow(true)}
-                          className="btn-outline w-full py-2 text-sm flex items-center justify-center gap-1.5"
-                        >
-                          <UserPlus size={14} />
-                          添加成员
-                        </button>
-                      )}
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                      <FilePlus size={14} className="inline mr-1.5 -mt-0.5" />
-                      篇目列表
-                    </label>
-                    <div className="space-y-2">
-                      {articles.map((article) => {
-                        const assignee = members.find(
-                          (m) => m.tempId === article.assigneeTempId
-                        );
-                        return (
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                        <UserPlus size={14} className="inline mr-1.5 -mt-0.5" />
+                        参与人员
+                      </label>
+                      <div className="space-y-2">
+                        {members.map((member) => (
                           <div
-                            key={article.tempId}
+                            key={member.tempId}
                             className="flex items-center gap-3 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100"
                           >
+                            <div
+                              className={`w-9 h-9 rounded-full ${ROLE_COLORS[member.role]} text-white flex items-center justify-center text-sm font-medium shrink-0`}
+                            >
+                              {getInitials(member.name)}
+                            </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-ink-700 truncate">
-                                {article.title}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span
-                                  className={`stamp-mark text-[10px] ${ARTICLE_BG_COLORS[article.type]}`}
-                                >
-                                  {ARTICLE_TYPE_LABELS[article.type]}
-                                </span>
-                                {assignee && (
-                                  <span className="text-xs text-ink-400">
-                                    {assignee.name}
-                                  </span>
+                                {member.name}
+                                {member.isCurrentUser && (
+                                  <span className="text-ink-400 text-xs ml-1.5">(你)</span>
                                 )}
-                              </div>
+                              </p>
+                              <span
+                                className={`inline-block text-[10px] px-1.5 py-0.5 rounded mt-0.5 ${ROLE_BG_COLORS[member.role]}`}
+                              >
+                                {ROLE_LABELS[member.role]}
+                              </span>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveArticle(article.tempId)}
-                              className="btn-ghost p-1.5 hover:bg-ink-100 rounded-lg shrink-0"
-                            >
-                              <X size={14} className="text-ink-400" />
-                            </button>
+                            {!member.isCurrentUser && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMember(member.tempId)}
+                                className="btn-ghost p-1.5 hover:bg-ink-100 rounded-lg shrink-0"
+                              >
+                                <X size={14} className="text-ink-400" />
+                              </button>
+                            )}
                           </div>
-                        );
-                      })}
+                        ))}
 
-                      {showArticleRow && (
-                        <div className="space-y-2 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100">
-                          <input
-                            type="text"
-                            value={newArticle.title}
-                            onChange={(e) =>
-                              setNewArticle({ ...newArticle, title: e.target.value })
-                            }
-                            placeholder="篇目标题"
-                            className="w-full px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
-                            autoFocus
-                          />
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={newArticle.type}
+                        {showMemberRow && (
+                          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100">
+                            <input
+                              type="text"
+                              value={newMember.name}
                               onChange={(e) =>
-                                setNewArticle({
-                                  ...newArticle,
-                                  type: e.target.value as ArticleType,
+                                setNewMember({ ...newMember, name: e.target.value })
+                              }
+                              placeholder="成员名称"
+                              className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                              autoFocus
+                            />
+                            <select
+                              value={newMember.role}
+                              onChange={(e) =>
+                                setNewMember({
+                                  ...newMember,
+                                  role: e.target.value as MemberRole,
                                 })
                               }
-                              className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                              className="px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
                             >
-                              <option value="cover">{ARTICLE_TYPE_LABELS.cover}</option>
-                              <option value="illustration">{ARTICLE_TYPE_LABELS.illustration}</option>
-                              <option value="text">{ARTICLE_TYPE_LABELS.text}</option>
+                              <option value="organizer">{ROLE_LABELS.organizer}</option>
+                              <option value="artist">{ROLE_LABELS.artist}</option>
+                              <option value="writer">{ROLE_LABELS.writer}</option>
+                              <option value="proofreader">{ROLE_LABELS.proofreader}</option>
                             </select>
-                            <select
-                              value={newArticle.assigneeTempId}
-                              onChange={(e) =>
-                                setNewArticle({
-                                  ...newArticle,
-                                  assigneeTempId: e.target.value,
-                                })
-                              }
-                              className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
-                            >
-                              <option value="">选择负责人</option>
-                              {members.map((m) => (
-                                <option key={m.tempId} value={m.tempId}>
-                                  {m.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => {
-                                setShowArticleRow(false);
-                                setNewArticle({ title: "", type: "text", assigneeTempId: "" });
-                              }}
-                              className="btn-ghost px-3 py-1.5 text-sm hover:bg-ink-100 rounded-lg"
-                            >
-                              取消
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleAddArticle}
-                              className="btn-cinnabar px-3 py-1.5 text-sm"
+                              onClick={handleAddMember}
+                              className="btn-cinnabar px-3 py-2 text-sm"
                             >
                               添加
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowMemberRow(false);
+                                setNewMember({ name: "", role: "artist" });
+                              }}
+                              className="btn-ghost p-2 hover:bg-ink-100 rounded-lg"
+                            >
+                              <X size={16} className="text-ink-400" />
+                            </button>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {!showArticleRow && (
-                        <button
-                          type="button"
-                          onClick={() => setShowArticleRow(true)}
-                          className="btn-outline w-full py-2 text-sm flex items-center justify-center gap-1.5"
-                        >
-                          <FilePlus size={14} />
-                          添加篇目
-                        </button>
-                      )}
+                        {!showMemberRow && (
+                          <button
+                            type="button"
+                            onClick={() => setShowMemberRow(true)}
+                            className="btn-outline w-full py-2 text-sm flex items-center justify-center gap-1.5"
+                          >
+                            <UserPlus size={14} />
+                            添加成员
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                        <FilePlus size={14} className="inline mr-1.5 -mt-0.5" />
+                        篇目列表
+                      </label>
+                      <div className="space-y-2">
+                        {articles.map((article) => {
+                          const assignee = members.find(
+                            (m) => m.tempId === article.assigneeTempId
+                          );
+                          return (
+                            <div
+                              key={article.tempId}
+                              className="flex items-center gap-3 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-ink-700 truncate">
+                                  {article.title}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span
+                                    className={`stamp-mark text-[10px] ${ARTICLE_BG_COLORS[article.type]}`}
+                                  >
+                                    {ARTICLE_TYPE_LABELS[article.type]}
+                                  </span>
+                                  {assignee && (
+                                    <span className="text-xs text-ink-400">
+                                      {assignee.name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveArticle(article.tempId)}
+                                className="btn-ghost p-1.5 hover:bg-ink-100 rounded-lg shrink-0"
+                              >
+                                <X size={14} className="text-ink-400" />
+                              </button>
+                            </div>
+                          );
+                        })}
+
+                        {showArticleRow && (
+                          <div className="space-y-2 p-2.5 rounded-xl bg-ink-50/50 border border-ink-100">
+                            <input
+                              type="text"
+                              value={newArticle.title}
+                              onChange={(e) =>
+                                setNewArticle({ ...newArticle, title: e.target.value })
+                              }
+                              placeholder="篇目标题"
+                              className="w-full px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                              autoFocus
+                            />
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={newArticle.type}
+                                onChange={(e) =>
+                                  setNewArticle({
+                                    ...newArticle,
+                                    type: e.target.value as ArticleType,
+                                  })
+                                }
+                                className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                              >
+                                <option value="cover">{ARTICLE_TYPE_LABELS.cover}</option>
+                                <option value="illustration">{ARTICLE_TYPE_LABELS.illustration}</option>
+                                <option value="text">{ARTICLE_TYPE_LABELS.text}</option>
+                              </select>
+                              <select
+                                value={newArticle.assigneeTempId}
+                                onChange={(e) =>
+                                  setNewArticle({
+                                    ...newArticle,
+                                    assigneeTempId: e.target.value,
+                                  })
+                                }
+                                className="flex-1 px-3 py-2 rounded-lg border border-ink-100 bg-white text-sm focus:outline-none focus:border-indigo"
+                              >
+                                <option value="">选择负责人</option>
+                                {members.map((m) => (
+                                  <option key={m.tempId} value={m.tempId}>
+                                    {m.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowArticleRow(false);
+                                  setNewArticle({ title: "", type: "text", assigneeTempId: "" });
+                                }}
+                                className="btn-ghost px-3 py-1.5 text-sm hover:bg-ink-100 rounded-lg"
+                              >
+                                取消
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleAddArticle}
+                                className="btn-cinnabar px-3 py-1.5 text-sm"
+                              >
+                                添加
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {!showArticleRow && (
+                          <button
+                            type="button"
+                            onClick={() => setShowArticleRow(true)}
+                            className="btn-outline w-full py-2 text-sm flex items-center justify-center gap-1.5"
+                          >
+                            <FilePlus size={14} />
+                            添加篇目
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 pt-3 border-t border-ink-50">
+                  <div className="flex items-center gap-3 p-6 pt-4 border-t border-ink-50 bg-washi-50">
                     <button
                       type="button"
                       onClick={() => setShowModal(false)}

@@ -46,6 +46,7 @@ export interface FileVersion {
   fileName: string;
   fileUrl: string;
   version: number;
+  note: string;
   uploadedAt: string;
 }
 
